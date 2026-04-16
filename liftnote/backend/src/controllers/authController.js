@@ -63,8 +63,12 @@ const forgotPassword = async (req, res) => {
     user.reset_token_expires = new Date(Date.now() + 1000 * 60 * 30); // 30 minutos
     await user.save({ validateBeforeSave: false });
 
-    // Em produção: enviar por e-mail. Aqui retornamos o token para fins de desenvolvimento.
-    res.json({ message: "Token de redefinição gerado", reset_token: token });
+    // Em produção: enviar por e-mail. Em desenvolvimento, retorna o token na resposta.
+    const response = { message: "Token de redefinição gerado" };
+    if (process.env.NODE_ENV !== "production") {
+      response.reset_token = token;
+    }
+    res.json(response);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

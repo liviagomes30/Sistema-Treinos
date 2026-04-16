@@ -6,7 +6,7 @@ const authController = require("../controllers/authController");
 const workoutController = require("../controllers/workoutController");
 const exerciseController = require("../controllers/exerciseController");
 const sessionController = require("../controllers/sessionController");
-const logController = require("../controllers/logController");
+const logController = require("../controllers/logsController");
 
 // ─── AUTH (público) ────────────────────────────────────────────
 router.post("/auth/register", authController.register);

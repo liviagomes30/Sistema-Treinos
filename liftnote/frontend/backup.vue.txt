@@ -1,0 +1,2839 @@
+<template>
+  <!-- ─── AUTH PAGE ─── -->
+  <div v-if="!currentUser" class="auth-page">
+    <div class="auth-card">
+      <div class="auth-logo">
+        <div class="auth-logo-icon">LN</div>
+        <div class="auth-title">LIFTNOTE</div>
+        <div class="auth-sub">Track. Train. Evolve.</div>
+      </div>
+
+      <!-- Login -->
+      <template v-if="authView === 'login'">
+        <div class="form-group">
+          <label>E-mail</label>
+          <input
+            v-model="authForm.email"
+            type="email"
+            placeholder="seu@email.com"
+            @keyup.enter="doLogin"
+          />
+        </div>
+        <div class="form-group">
+          <label>Senha</label>
+          <input
+            v-model="authForm.password"
+            type="password"
+            placeholder="••••••••"
+            @keyup.enter="doLogin"
+          />
+        </div>
+        <div v-if="authError" class="error-msg">{{ authError }}</div>
+        <button
+          class="btn btn-accent"
+          style="width: 100%; margin-top: 8px; justify-content: center"
+          @click="doLogin"
+        >
+          Entrar
+        </button>
+        <div class="auth-divider">
+          Não tem conta?
+          <a class="auth-link" @click="authView = 'register'">Cadastre-se</a>
+          &nbsp;·&nbsp;
+          <a class="auth-link" @click="authView = 'reset'">Esqueci a senha</a>
+        </div>
+      </template>
+
+      <!-- Register -->
+      <template v-else-if="authView === 'register'">
+        <div class="form-group">
+          <label>Nome completo</label>
+          <input v-model="authForm.name" placeholder="João Silva" />
+        </div>
+        <div class="form-group">
+          <label>E-mail</label>
+          <input
+            v-model="authForm.email"
+            type="email"
+            placeholder="seu@email.com"
+          />
+        </div>
+        <div class="form-group">
+          <label>Senha</label>
+          <input
+            v-model="authForm.password"
+            type="password"
+            placeholder="mínimo 6 caracteres"
+          />
+        </div>
+        <div class="form-group">
+          <label>Idade (opcional)</label>
+          <input v-model.number="authForm.age" type="number" placeholder="20" />
+        </div>
+        <div v-if="authError" class="error-msg">{{ authError }}</div>
+        <button
+          class="btn btn-accent"
+          style="width: 100%; margin-top: 8px; justify-content: center"
+          @click="doRegister"
+        >
+          Criar conta
+        </button>
+        <div class="auth-divider">
+          Já tem conta?
+          <a class="auth-link" @click="authView = 'login'">Entrar</a>
+        </div>
+      </template>
+
+      <!-- Reset Password -->
+      <template v-else>
+        <p style="font-size: 13px; color: var(--text2); margin-bottom: 16px">
+          Informe seu e-mail para receber as instruções de redefinição de senha.
+        </p>
+        <div class="form-group">
+          <label>E-mail</label>
+          <input
+            v-model="authForm.email"
+            type="email"
+            placeholder="seu@email.com"
+          />
+        </div>
+        <div v-if="authError" class="error-msg">{{ authError }}</div>
+        <div
+          v-if="resetSent"
+          style="color: var(--accent); font-size: 12px; margin-top: 8px"
+        >
+          ✓ Link enviado para {{ authForm.email }}
+        </div>
+        <button
+          class="btn btn-accent"
+          style="width: 100%; margin-top: 8px; justify-content: center"
+          @click="doReset"
+        >
+          Enviar link
+        </button>
+        <div class="auth-divider">
+          <a class="auth-link" @click="authView = 'login'">← Voltar ao login</a>
+        </div>
+      </template>
+    </div>
+  </div>
+
+  <!-- ─── APP ─── -->
+  <template v-else>
+    <!-- Sidebar -->
+    <aside :class="['sidebar', { open: sidebarOpen }]">
+      <div class="sidebar-logo">
+        <div class="logo-icon">LN</div>
+        <div class="logo-text">LIFTNOTE</div>
+      </div>
+      <div class="sidebar-user">
+        <div class="user-avatar">{{ currentUser.name[0].toUpperCase() }}</div>
+        <div class="user-name">{{ currentUser.name }}</div>
+        <div class="user-sub">
+          {{ currentUser.age ? currentUser.age + " anos" : "Usuário" }}
+        </div>
+      </div>
+      <div class="nav-label">Menu</div>
+      <div
+        class="nav-item"
+        :class="{ active: page === 'home' }"
+        @click="navigate('home')"
+      >
+        <span class="nav-icon">⌂</span> Home
+      </div>
+      <div
+        class="nav-item"
+        :class="{ active: page === 'workouts' }"
+        @click="navigate('workouts')"
+      >
+        <span class="nav-icon">◈</span> Treinos
+        <span class="badge" style="margin-left: auto">{{
+          workouts.length
+        }}</span>
+      </div>
+      <div
+        class="nav-item"
+        :class="{ active: page === 'history' }"
+        @click="navigate('history')"
+      >
+        <span class="nav-icon">◷</span> Histórico
+      </div>
+      <div
+        class="nav-item"
+        :class="{ active: page === 'progress' }"
+        @click="navigate('progress')"
+      >
+        <span class="nav-icon">↗</span> Progresso
+      </div>
+      <div class="sidebar-bottom">
+        <div
+          class="nav-item"
+          :class="{ active: page === 'settings' }"
+          @click="navigate('settings')"
+        >
+          <span class="nav-icon">⚙</span> Configurações
+        </div>
+        <div class="nav-item" @click="doLogout" style="color: var(--red)">
+          <span class="nav-icon">←</span> Sair
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main content -->
+    <div class="main" @click="sidebarOpen = false">
+      <div class="topbar">
+        <div style="display: flex; align-items: center; gap: 12px">
+          <div
+            style="cursor: pointer; display: none"
+            class="mobile-menu"
+            @click.stop="sidebarOpen = !sidebarOpen"
+          >
+            ☰
+          </div>
+          <div class="topbar-title">{{ pageTitle }}</div>
+        </div>
+        <div class="topbar-date">{{ todayFormatted }}</div>
+      </div>
+
+      <div class="page">
+        <transition name="fade" mode="out-in">
+          <!-- ─── HOME ─── -->
+          <div v-if="page === 'home'" key="home">
+            <div class="stat-grid mb">
+              <div class="stat-card">
+                <div class="stat-val">{{ sessions.length }}</div>
+                <div class="stat-label">Treinos feitos</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-val">{{ weekSessions }}</div>
+                <div class="stat-label">Esta semana</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-val">{{ totalVolume }}</div>
+                <div class="stat-label">Volume (kg) total</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-val">{{ streak }}</div>
+                <div class="stat-label">Dias seguidos</div>
+              </div>
+            </div>
+
+            <div
+              style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px"
+              class="mt"
+            >
+              <!-- Calendar -->
+              <div class="card">
+                <div
+                  style="
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    margin-bottom: 14px;
+                  "
+                >
+                  <span style="font-weight: 500; font-size: 13px">{{
+                    calendarMonthName
+                  }}</span>
+                  <div style="display: flex; gap: 6px">
+                    <button class="btn btn-ghost btn-sm" @click="calMonth--">
+                      ‹
+                    </button>
+                    <button class="btn btn-ghost btn-sm" @click="calMonth++">
+                      ›
+                    </button>
+                  </div>
+                </div>
+                <div class="cal-grid">
+                  <div
+                    class="cal-day-label"
+                    v-for="d in ['D', 'S', 'T', 'Q', 'Q', 'S', 'S']"
+                  >
+                    {{ d }}
+                  </div>
+                  <div
+                    v-for="day in calendarDays"
+                    :key="day.key"
+                    :class="[
+                      'cal-day',
+                      {
+                        today: day.isToday,
+                        'has-session': day.hasSession,
+                        'other-month': !day.inMonth,
+                      },
+                    ]"
+                  >
+                    {{ day.n }}
+                  </div>
+                </div>
+              </div>
+
+              <!-- Recent sessions -->
+              <div class="card">
+                <h3>Últimas sessões</h3>
+                <div
+                  v-if="sessions.length === 0"
+                  class="empty-state"
+                  style="padding: 20px"
+                >
+                  <div class="empty-text">Nenhuma sessão ainda</div>
+                </div>
+                <div
+                  v-for="s in sessions.slice(0, 4)"
+                  :key="s._id"
+                  style="margin-bottom: 8px"
+                  @click="viewSession(s)"
+                >
+                  <div
+                    style="
+                      display: flex;
+                      align-items: center;
+                      justify-content: space-between;
+                      padding: 10px 12px;
+                      background: var(--bg3);
+                      border-radius: var(--r);
+                      cursor: pointer;
+                      border: 1px solid var(--border);
+                    "
+                  >
+                    <div>
+                      <div style="font-weight: 500; font-size: 13px">
+                        {{ getWorkoutName(s.workout_id) }}
+                      </div>
+                      <div style="font-size: 11px; color: var(--text2)">
+                        {{ formatDate(s.started_at) }} ·
+                        {{
+                          s.duration_formatted ||
+                          formatDuration(s.duration_seconds)
+                        }}
+                      </div>
+                    </div>
+                    <span
+                      :class="[
+                        'tag',
+                        s.status === 'completed'
+                          ? 'tag-accent'
+                          : s.status === 'cancelled'
+                            ? 'tag-red'
+                            : 'tag-blue',
+                      ]"
+                    >
+                      {{ statusLabel(s.status) }}
+                    </span>
+                  </div>
+                </div>
+                <button
+                  class="btn btn-ghost btn-sm mt"
+                  style="width: 100%; justify-content: center"
+                  @click="navigate('history')"
+                >
+                  Ver todo histórico
+                </button>
+              </div>
+            </div>
+
+            <!-- Quick Start -->
+            <div class="card mt">
+              <div
+                style="
+                  display: flex;
+                  align-items: center;
+                  justify-content: space-between;
+                  margin-bottom: 14px;
+                "
+              >
+                <h3 style="margin: 0">Iniciar treino rápido</h3>
+              </div>
+              <div
+                v-if="workouts.length === 0"
+                class="empty-state"
+                style="padding: 16px"
+              >
+                <div class="empty-text muted">Crie um treino primeiro</div>
+                <button
+                  class="btn btn-accent btn-sm"
+                  style="margin-top: 12px"
+                  @click="navigate('workouts')"
+                >
+                  Criar treino
+                </button>
+              </div>
+              <div style="display: flex; flex-wrap: wrap; gap: 8px">
+                <button
+                  v-for="w in workouts.slice(0, 6)"
+                  :key="w._id"
+                  class="btn btn-ghost"
+                  @click="startSession(w)"
+                >
+                  ▶ {{ w.name }}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- ─── WORKOUTS ─── -->
+          <div v-else-if="page === 'workouts'" key="workouts">
+            <div
+              style="
+                display: flex;
+                justify-content: flex-end;
+                margin-bottom: 16px;
+              "
+            >
+              <button
+                class="btn btn-accent"
+                @click="openModal('createWorkout')"
+              >
+                + Novo treino
+              </button>
+            </div>
+            <div v-if="workouts.length === 0" class="empty-state">
+              <div class="empty-icon">◈</div>
+              <div class="empty-text">
+                Nenhum treino criado ainda.<br />Crie seu primeiro treino!
+              </div>
+            </div>
+            <div
+              v-for="w in workouts"
+              :key="w._id"
+              class="workout-row"
+              :class="{
+                selected: selectedWorkout && selectedWorkout._id === w._id,
+              }"
+              @click="selectWorkout(w)"
+            >
+              <div class="workout-num">{{ w.name[0] }}</div>
+              <div class="workout-info">
+                <div class="workout-name">{{ w.name }}</div>
+                <div class="workout-meta">
+                  {{ (w.exercises || []).length }} exercícios ·
+                  {{ w.description || "Sem descrição" }}
+                </div>
+              </div>
+              <div style="display: flex; gap: 6px" @click.stop>
+                <button class="btn btn-ghost btn-sm" @click="editWorkout(w)">
+                  Editar
+                </button>
+                <button
+                  class="btn btn-ghost btn-sm"
+                  @click="manageExercises(w)"
+                >
+                  Exercícios
+                </button>
+                <button class="btn btn-accent btn-sm" @click="startSession(w)">
+                  ▶ Iniciar
+                </button>
+                <button
+                  class="btn btn-danger btn-sm"
+                  @click="deleteWorkout(w._id)"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            <!-- Exercises panel -->
+            <div v-if="selectedWorkout" class="card mt">
+              <div
+                style="
+                  display: flex;
+                  align-items: center;
+                  justify-content: space-between;
+                  margin-bottom: 14px;
+                "
+              >
+                <h3 style="margin: 0">
+                  Exercícios — {{ selectedWorkout.name }}
+                </h3>
+                <button
+                  class="btn btn-accent btn-sm"
+                  @click="openModal('addExercise')"
+                >
+                  + Adicionar
+                </button>
+              </div>
+              <div
+                v-if="selectedWorkoutExercises.length === 0"
+                class="empty-state"
+                style="padding: 20px"
+              >
+                <div class="empty-text">
+                  Nenhum exercício. Adicione o primeiro!
+                </div>
+              </div>
+              <div
+                v-for="(ex, i) in selectedWorkoutExercises"
+                :key="ex._id"
+                class="exercise-card"
+              >
+                <div class="exercise-header">
+                  <div style="display: flex; align-items: center; gap: 12px">
+                    <span
+                      style="
+                        font-family: var(--font-mono);
+                        font-size: 11px;
+                        color: var(--text3);
+                      "
+                      >{{ String(i + 1).padStart(2, "0") }}</span
+                    >
+                    <div>
+                      <div style="font-weight: 500; font-size: 13px">
+                        {{ ex.name }}
+                      </div>
+                      <div style="font-size: 11px; color: var(--text2)">
+                        {{ ex.muscle_group }} ·
+                        {{
+                          ex.set_type === "pyramid"
+                            ? "Pirâmide"
+                            : ex.series +
+                              "x" +
+                              ex.reps +
+                              " @ " +
+                              ex.weight_kg +
+                              "kg"
+                        }}
+                      </div>
+                    </div>
+                  </div>
+                  <div style="display: flex; gap: 6px">
+                    <span class="tag">{{ ex.rest_seconds }}s rest</span>
+                    <button
+                      class="btn btn-danger btn-sm"
+                      @click="deleteExercise(ex._id)"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ─── ACTIVE SESSION ─── -->
+          <div v-else-if="page === 'session'" key="session">
+            <div
+              style="display: grid; grid-template-columns: 1fr 280px; gap: 20px"
+            >
+              <div>
+                <div
+                  style="
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                    margin-bottom: 16px;
+                  "
+                >
+                  <div>
+                    <div
+                      style="
+                        font-size: 11px;
+                        color: var(--text2);
+                        font-family: var(--font-mono);
+                      "
+                    >
+                      SESSÃO ATIVA
+                    </div>
+                    <div
+                      style="font-family: var(--font-display); font-size: 26px"
+                    >
+                      {{ activeSession?.workoutName }}
+                    </div>
+                  </div>
+                  <div style="margin-left: auto; display: flex; gap: 8px">
+                    <button class="btn btn-ghost" @click="toggleTimer">
+                      {{ timerRunning ? "⏸ Pausar" : "▶ Retomar" }}
+                    </button>
+                    <button class="btn btn-accent" @click="finishSession">
+                      ✓ Finalizar
+                    </button>
+                    <button class="btn btn-danger" @click="cancelSession">
+                      ✕
+                    </button>
+                  </div>
+                </div>
+
+                <div
+                  v-for="(ex, ei) in activeSession.exercises"
+                  :key="ex._id"
+                  :class="[
+                    'exercise-card',
+                    { active: activeExerciseIdx === ei },
+                  ]"
+                >
+                  <div
+                    class="exercise-header"
+                    @click="
+                      activeExerciseIdx = activeExerciseIdx === ei ? -1 : ei
+                    "
+                  >
+                    <div style="display: flex; align-items: center; gap: 10px">
+                      <span
+                        :class="[
+                          'tag',
+                          exerciseComplete(ex) ? 'tag-accent' : '',
+                        ]"
+                      >
+                        {{ exerciseComplete(ex) ? "✓" : ei + 1 }}
+                      </span>
+                      <div>
+                        <div style="font-weight: 500">{{ ex.name }}</div>
+                        <div style="font-size: 11px; color: var(--text2)">
+                          {{ ex.muscle_group }}
+                        </div>
+                      </div>
+                    </div>
+                    <div style="display: flex; gap: 6px; align-items: center">
+                      <span class="tag">{{
+                        ex.set_type === "pyramid"
+                          ? "Pirâmide"
+                          : ex.series + "x" + ex.reps
+                      }}</span>
+                      <span style="color: var(--text2)">{{
+                        activeExerciseIdx === ei ? "▲" : "▼"
+                      }}</span>
+                    </div>
+                  </div>
+                  <div v-if="activeExerciseIdx === ei" class="exercise-sets">
+                    <div
+                      style="
+                        display: grid;
+                        grid-template-columns: 28px 80px 80px 80px auto;
+                        gap: 8px;
+                        padding: 8px 0 4px;
+                        font-size: 10px;
+                        color: var(--text3);
+                        text-transform: uppercase;
+                        letter-spacing: 0.5px;
+                      "
+                    >
+                      <span>#</span><span>Peso (kg)</span><span>Reps</span
+                      ><span>Alvo</span><span></span>
+                    </div>
+                    <div
+                      v-for="(s, si) in getExSets(ex)"
+                      :key="si"
+                      style="
+                        display: grid;
+                        grid-template-columns: 28px 80px 80px 80px auto;
+                        gap: 8px;
+                        align-items: center;
+                        padding: 6px 0;
+                        border-bottom: 1px solid var(--border);
+                      "
+                    >
+                      <span class="set-num">{{ si + 1 }}</span>
+                      <input
+                        type="number"
+                        :value="s.weightLogged"
+                        @change="
+                          logSet(ex._id, si, 'weight', $event.target.value)
+                        "
+                        style="padding: 5px 8px; font-size: 12px"
+                        min="0"
+                      />
+                      <input
+                        type="number"
+                        :value="s.repsLogged"
+                        @change="
+                          logSet(ex._id, si, 'reps', $event.target.value)
+                        "
+                        style="padding: 5px 8px; font-size: 12px"
+                        min="0"
+                      />
+                      <span
+                        style="
+                          font-size: 11px;
+                          color: var(--text2);
+                          font-family: var(--font-mono);
+                        "
+                        >{{ s.targetReps }}r @ {{ s.targetWeight }}kg</span
+                      >
+                      <button
+                        class="btn btn-accent btn-sm"
+                        v-if="!s.done"
+                        @click="markSetDone(ex._id, si)"
+                      >
+                        ✓
+                      </button>
+                      <span v-else class="tag tag-accent">✓</span>
+                    </div>
+                    <div
+                      style="
+                        font-size: 11px;
+                        color: var(--text2);
+                        padding-top: 8px;
+                      "
+                    >
+                      Descanso:
+                      {{ ex.no_rest ? "Sem descanso" : ex.rest_seconds + "s" }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Timer sidebar -->
+              <div>
+                <div
+                  class="card"
+                  style="text-align: center; margin-bottom: 12px"
+                >
+                  <div
+                    style="
+                      font-size: 11px;
+                      color: var(--text2);
+                      letter-spacing: 1px;
+                      text-transform: uppercase;
+                      margin-bottom: 4px;
+                    "
+                  >
+                    Tempo de treino
+                  </div>
+                  <div class="timer-display">{{ timerDisplay }}</div>
+                  <div style="display: flex; gap: 8px; justify-content: center">
+                    <button class="btn btn-ghost btn-sm" @click="toggleTimer">
+                      {{ timerRunning ? "⏸" : "▶" }}
+                    </button>
+                    <button class="btn btn-ghost btn-sm" @click="resetTimer">
+                      ↺
+                    </button>
+                  </div>
+                </div>
+
+                <div class="card">
+                  <h3>Progresso</h3>
+                  <div style="margin-bottom: 12px">
+                    <div
+                      style="
+                        display: flex;
+                        justify-content: space-between;
+                        font-size: 12px;
+                        margin-bottom: 6px;
+                      "
+                    >
+                      <span class="muted">Exercícios completos</span>
+                      <span style="font-family: var(--font-mono)"
+                        >{{ completedExercises }}/{{
+                          activeSession.exercises.length
+                        }}</span
+                      >
+                    </div>
+                    <div
+                      style="
+                        height: 4px;
+                        background: var(--bg4);
+                        border-radius: 2px;
+                        overflow: hidden;
+                      "
+                    >
+                      <div
+                        :style="{
+                          width:
+                            (completedExercises /
+                              activeSession.exercises.length) *
+                              100 +
+                            '%',
+                          height: '100%',
+                          background: 'var(--accent)',
+                          transition: 'width 0.3s',
+                          borderRadius: '2px',
+                        }"
+                      ></div>
+                    </div>
+                  </div>
+                  <div style="font-size: 12px; color: var(--text2)">
+                    Volume atual:
+                    <strong style="color: var(--accent)"
+                      >{{ sessionVolume }} kg</strong
+                    >
+                  </div>
+                </div>
+
+                <div class="card mt" style="margin-top: 12px">
+                  <h3>Anotações</h3>
+                  <textarea
+                    v-model="activeSession.notes"
+                    rows="3"
+                    placeholder="Como está se sentindo? Notas do treino..."
+                    style="resize: none; font-size: 12px"
+                  ></textarea>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ─── HISTORY ─── -->
+          <div v-else-if="page === 'history'" key="history">
+            <div
+              style="
+                display: flex;
+                gap: 10px;
+                margin-bottom: 16px;
+                flex-wrap: wrap;
+              "
+            >
+              <input
+                v-model="historySearch"
+                placeholder="Buscar treino..."
+                style="max-width: 200px"
+              />
+              <select v-model="historyFilter" style="max-width: 160px">
+                <option value="">Todos os status</option>
+                <option value="completed">Completo</option>
+                <option value="in_progress">Em andamento</option>
+                <option value="cancelled">Cancelado</option>
+              </select>
+            </div>
+            <div v-if="filteredHistory.length === 0" class="empty-state">
+              <div class="empty-icon">◷</div>
+              <div class="empty-text">Nenhuma sessão encontrada</div>
+            </div>
+            <div
+              v-for="s in filteredHistory"
+              :key="s._id"
+              class="history-item"
+              @click="viewSession(s)"
+            >
+              <div class="history-date">
+                <div class="history-date-day">
+                  {{ new Date(s.started_at).getDate() }}
+                </div>
+                <div class="history-date-month">
+                  {{ months[new Date(s.started_at).getMonth()] }}
+                </div>
+              </div>
+              <div style="flex: 1">
+                <div
+                  style="
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    margin-bottom: 4px;
+                  "
+                >
+                  <span style="font-weight: 500">{{
+                    getWorkoutName(s.workout_id)
+                  }}</span>
+                  <span
+                    :class="[
+                      'tag',
+                      s.status === 'completed'
+                        ? 'tag-accent'
+                        : s.status === 'cancelled'
+                          ? 'tag-red'
+                          : 'tag-blue',
+                    ]"
+                    >{{ statusLabel(s.status) }}</span
+                  >
+                </div>
+                <div style="font-size: 11px; color: var(--text2)">
+                  {{ formatDate(s.started_at) }} · Duração:
+                  {{
+                    s.duration_formatted ||
+                    formatDuration(s.duration_seconds) ||
+                    "—"
+                  }}
+                </div>
+                <div
+                  v-if="s.ai_summary"
+                  style="
+                    font-size: 11px;
+                    color: var(--text3);
+                    margin-top: 4px;
+                    font-style: italic;
+                  "
+                >
+                  🤖 {{ s.ai_summary.substring(0, 80) }}...
+                </div>
+              </div>
+              <div
+                style="display: flex; gap: 6px; align-items: center"
+                @click.stop
+              >
+                <button
+                  class="btn btn-danger btn-sm"
+                  @click="deleteSession(s._id)"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- ─── PROGRESS ─── -->
+          <div v-else-if="page === 'progress'" key="progress">
+            <div class="stat-grid mb">
+              <div class="stat-card">
+                <div class="stat-val">
+                  {{ sessions.filter((s) => s.status === "completed").length }}
+                </div>
+                <div class="stat-label">Sessões completas</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-val">{{ Math.round(avgDuration) }}</div>
+                <div class="stat-label">Média (min)</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-val">{{ totalVolume }}</div>
+                <div class="stat-label">Volume total kg</div>
+              </div>
+            </div>
+
+            <div class="card mt">
+              <h3>Treinos por dia (últimas 4 semanas)</h3>
+              <div class="progress-bars">
+                <div class="bar-item" v-for="(d, i) in last28Days" :key="i">
+                  <div
+                    class="bar-fill"
+                    :class="{ active: d.count > 0 }"
+                    :style="{ height: Math.max(4, d.count * 40) + 'px' }"
+                  ></div>
+                  <div class="bar-label">{{ d.label }}</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card mt">
+              <div
+                style="
+                  display: flex;
+                  align-items: center;
+                  justify-content: space-between;
+                  margin-bottom: 14px;
+                "
+              >
+                <h3 style="margin: 0">Resumo de sessão por IA</h3>
+                <span class="tag tag-accent">Claude AI</span>
+              </div>
+              <div
+                v-if="!selectedSessionForAI"
+                class="empty-state"
+                style="padding: 20px"
+              >
+                <div class="empty-text">
+                  Selecione uma sessão no histórico para gerar o resumo
+                </div>
+              </div>
+              <div v-else>
+                <div
+                  style="
+                    margin-bottom: 12px;
+                    font-size: 12px;
+                    color: var(--text2);
+                  "
+                >
+                  Sessão:
+                  <strong>{{
+                    getWorkoutName(selectedSessionForAI.workout_id)
+                  }}</strong>
+                  · {{ formatDate(selectedSessionForAI.started_at) }}
+                </div>
+                <div v-if="aiLoading" class="ai-bubble">
+                  <div class="ai-label">
+                    <div class="ai-dot"></div>
+                    Gerando análise...
+                  </div>
+                  <div style="color: var(--text2); font-size: 13px">
+                    Analisando seu treino...
+                  </div>
+                </div>
+                <div
+                  v-else-if="selectedSessionForAI.ai_summary"
+                  class="ai-bubble"
+                >
+                  <div class="ai-label">
+                    <div class="ai-dot"></div>
+                    Análise da IA
+                  </div>
+                  <div
+                    style="
+                      font-size: 13px;
+                      line-height: 1.7;
+                      color: var(--text);
+                    "
+                  >
+                    {{ selectedSessionForAI.ai_summary }}
+                  </div>
+                </div>
+                <button
+                  v-if="!selectedSessionForAI.ai_summary && !aiLoading"
+                  class="btn btn-accent"
+                  @click="generateAISummary"
+                >
+                  ✦ Gerar análise com IA
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- ─── SETTINGS ─── -->
+          <div v-else-if="page === 'settings'" key="settings">
+            <div class="card" style="max-width: 520px">
+              <h3>Perfil</h3>
+              <div class="form-group">
+                <label>Nome</label>
+                <input v-model="editUser.name" />
+              </div>
+              <div class="form-group">
+                <label>E-mail</label>
+                <input v-model="editUser.email" type="email" />
+              </div>
+              <div class="form-group">
+                <label>Idade</label>
+                <input v-model.number="editUser.age" type="number" />
+              </div>
+              <div class="flex-end">
+                <button class="btn btn-accent" @click="saveProfile">
+                  Salvar perfil
+                </button>
+              </div>
+            </div>
+
+            <div class="card mt" style="max-width: 520px; margin-top: 16px">
+              <h3>Alterar senha</h3>
+              <div class="form-group">
+                <label>Senha atual</label>
+                <input
+                  v-model="pwdForm.current"
+                  type="password"
+                  placeholder="••••••"
+                />
+              </div>
+              <div class="form-group">
+                <label>Nova senha</label>
+                <input
+                  v-model="pwdForm.new"
+                  type="password"
+                  placeholder="••••••"
+                />
+              </div>
+              <div class="form-group">
+                <label>Confirmar nova senha</label>
+                <input
+                  v-model="pwdForm.confirm"
+                  type="password"
+                  placeholder="••••••"
+                />
+              </div>
+              <div
+                v-if="pwdMsg"
+                :style="{
+                  color: pwdMsgOk ? 'var(--accent)' : 'var(--red)',
+                  fontSize: '12px',
+                  marginTop: '6px',
+                }"
+              >
+                {{ pwdMsg }}
+              </div>
+              <div class="flex-end">
+                <button class="btn btn-accent" @click="changePassword">
+                  Alterar senha
+                </button>
+              </div>
+            </div>
+
+            <div
+              class="card mt"
+              style="
+                max-width: 520px;
+                margin-top: 16px;
+                border-color: rgba(255, 77, 77, 0.2);
+              "
+            >
+              <h3 style="color: var(--red)">Zona de perigo</h3>
+              <p
+                style="
+                  font-size: 12px;
+                  color: var(--text2);
+                  margin-bottom: 14px;
+                "
+              >
+                Excluir conta remove permanentemente todos os seus dados.
+              </p>
+              <button class="btn btn-danger" @click="confirmDeleteAccount">
+                Excluir minha conta
+              </button>
+            </div>
+          </div>
+        </transition>
+      </div>
+    </div>
+  </template>
+
+  <!-- ─── MODALS ─── -->
+  <div v-if="modal" class="modal-overlay" @click.self="modal = null">
+    <div class="modal">
+      <!-- Create/Edit Workout -->
+      <div v-if="modal === 'createWorkout' || modal === 'editWorkout'">
+        <div class="modal-title">
+          {{ modal === "createWorkout" ? "Novo treino" : "Editar treino" }}
+          <span class="modal-close" @click="modal = null">×</span>
+        </div>
+        <div class="form-group">
+          <label>Nome do treino *</label>
+          <input v-model="workoutForm.name" placeholder="ex: Peito + Tríceps" />
+        </div>
+        <div class="form-group">
+          <label>Descrição</label>
+          <textarea
+            v-model="workoutForm.description"
+            rows="2"
+            placeholder="Descrição opcional"
+          ></textarea>
+        </div>
+        <div class="flex-end">
+          <button class="btn btn-ghost" @click="modal = null">Cancelar</button>
+          <button class="btn btn-accent" @click="saveWorkout">
+            {{ modal === "createWorkout" ? "Criar" : "Salvar" }}
+          </button>
+        </div>
+      </div>
+
+      <!-- Add Exercise -->
+      <div v-else-if="modal === 'addExercise'">
+        <div class="modal-title">
+          Adicionar exercício
+          <span class="modal-close" @click="modal = null">×</span>
+        </div>
+        <div class="form-group">
+          <label>Nome *</label>
+          <input v-model="exerciseForm.name" placeholder="ex: Supino reto" />
+        </div>
+        <div class="grid-2">
+          <div class="form-group">
+            <label>Grupo muscular</label>
+            <select v-model="exerciseForm.muscle_group">
+              <option value="chest">Peito</option>
+              <option value="back">Costas</option>
+              <option value="shoulders">Ombros</option>
+              <option value="biceps">Bíceps</option>
+              <option value="triceps">Tríceps</option>
+              <option value="legs">Pernas</option>
+              <option value="core">Core</option>
+              <option value="glutes">Glúteos</option>
+              <option value="calves">Panturrilha</option>
+              <option value="other">Outro</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Tipo de série</label>
+            <select v-model="exerciseForm.set_type">
+              <option value="linear">Linear</option>
+              <option value="pyramid">Pirâmide</option>
+            </select>
+          </div>
+        </div>
+        <div v-if="exerciseForm.set_type === 'linear'" class="grid-3">
+          <div class="form-group">
+            <label>Séries</label>
+            <input
+              v-model.number="exerciseForm.series"
+              type="number"
+              min="1"
+              max="20"
+            />
+          </div>
+          <div class="form-group">
+            <label>Reps</label>
+            <input v-model.number="exerciseForm.reps" type="number" min="1" />
+          </div>
+          <div class="form-group">
+            <label>Peso (kg)</label>
+            <input
+              v-model.number="exerciseForm.weight_kg"
+              type="number"
+              min="0"
+              step="0.5"
+            />
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="form-group">
+            <label>Descanso (seg)</label>
+            <input
+              v-model.number="exerciseForm.rest_seconds"
+              type="number"
+              min="0"
+            />
+          </div>
+          <div
+            class="form-group"
+            style="
+              display: flex;
+              align-items: center;
+              padding-top: 22px;
+              gap: 8px;
+            "
+          >
+            <input
+              type="checkbox"
+              v-model="exerciseForm.no_rest"
+              id="no_rest"
+              style="width: auto"
+            />
+            <label for="no_rest" style="margin: 0; cursor: pointer"
+              >Sem descanso</label
+            >
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Observações</label>
+          <input v-model="exerciseForm.notes" placeholder="Opcional" />
+        </div>
+        <div class="flex-end">
+          <button class="btn btn-ghost" @click="modal = null">Cancelar</button>
+          <button class="btn btn-accent" @click="saveExercise">
+            Adicionar
+          </button>
+        </div>
+      </div>
+
+      <!-- Session summary -->
+      <div v-else-if="modal === 'sessionSummary'">
+        <div class="modal-title">
+          Sessão finalizada!
+          <span
+            class="modal-close"
+            @click="
+              modal = null;
+              navigate('history');
+            "
+            >×</span
+          >
+        </div>
+        <div class="stat-grid mb" style="margin-bottom: 16px">
+          <div class="stat-card">
+            <div class="stat-val">
+              {{ finishedSession?.duration_formatted || "—" }}
+            </div>
+            <div class="stat-label">Duração</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-val">{{ finishedSession?.totalVolume || 0 }}</div>
+            <div class="stat-label">Volume kg</div>
+          </div>
+        </div>
+        <div v-if="aiLoading" class="ai-bubble">
+          <div class="ai-label">
+            <div class="ai-dot"></div>
+            IA analisando seu treino...
+          </div>
+        </div>
+        <div v-else-if="finishedSession?.ai_summary" class="ai-bubble">
+          <div class="ai-label">
+            <div class="ai-dot"></div>
+            Análise da IA
+          </div>
+          <div style="font-size: 13px; line-height: 1.7">
+            {{ finishedSession.ai_summary }}
+          </div>
+        </div>
+        <div class="flex-end" style="margin-top: 16px">
+          <button
+            class="btn btn-accent"
+            @click="
+              modal = null;
+              navigate('history');
+            "
+          >
+            Ver histórico
+          </button>
+        </div>
+      </div>
+
+      <!-- View session detail -->
+      <div v-else-if="modal === 'viewSession' && viewingSession">
+        <div class="modal-title">
+          {{ getWorkoutName(viewingSession.workout_id) }}
+          <span class="modal-close" @click="modal = null">×</span>
+        </div>
+        <div style="font-size: 12px; color: var(--text2); margin-bottom: 12px">
+          {{ formatDate(viewingSession.started_at) }}
+        </div>
+        <div class="stat-grid mb" style="margin-bottom: 14px">
+          <div class="stat-card">
+            <div class="stat-val" style="font-size: 22px">
+              {{
+                viewingSession.duration_formatted ||
+                formatDuration(viewingSession.duration_seconds) ||
+                "—"
+              }}
+            </div>
+            <div class="stat-label">Duração</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-val" style="font-size: 22px">
+              {{ statusLabel(viewingSession.status) }}
+            </div>
+            <div class="stat-label">Status</div>
+          </div>
+        </div>
+        <div v-if="viewingSession.ai_summary" class="ai-bubble">
+          <div class="ai-label">
+            <div class="ai-dot"></div>
+            Análise da IA
+          </div>
+          <div style="font-size: 13px; line-height: 1.7">
+            {{ viewingSession.ai_summary }}
+          </div>
+        </div>
+        <div v-else>
+          <button
+            class="btn btn-accent btn-sm"
+            @click="generateAISummaryForSession(viewingSession)"
+          >
+            ✦ Gerar análise com IA
+          </button>
+        </div>
+        <div class="flex-end">
+          <button class="btn btn-ghost" @click="modal = null">Fechar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref, computed, onMounted, onUnmounted, watch } from "vue";
+
+// ── State ──
+const page = ref("home");
+const modal = ref(null);
+const sidebarOpen = ref(false);
+const authView = ref("login");
+const authError = ref("");
+const resetSent = ref(false);
+const authForm = ref({ name: "", email: "", password: "", age: null });
+
+// Mock current user (in real app would be from API)
+const currentUser = ref(null);
+const editUser = ref({});
+const pwdForm = ref({ current: "", new: "", confirm: "" });
+const pwdMsg = ref("");
+const pwdMsgOk = ref(false);
+
+// Workouts
+const workouts = ref([]);
+const exercises = ref([]);
+const selectedWorkout = ref(null);
+const workoutForm = ref({ name: "", description: "" });
+const exerciseForm = ref({
+  name: "",
+  muscle_group: "chest",
+  set_type: "linear",
+  series: 3,
+  reps: 10,
+  weight_kg: 0,
+  rest_seconds: 90,
+  no_rest: false,
+  notes: "",
+  order: 0,
+});
+
+// Sessions
+const sessions = ref([]);
+const activeSession = ref(null);
+const finishedSession = ref(null);
+const viewingSession = ref(null);
+const historySearch = ref("");
+const historyFilter = ref("");
+
+// Timer
+const timerSeconds = ref(0);
+const timerRunning = ref(false);
+let timerInterval = null;
+const activeExerciseIdx = ref(0);
+const setLogs = ref({}); // { exId: [{weightLogged, repsLogged, done}] }
+
+// AI
+const aiLoading = ref(false);
+const selectedSessionForAI = ref(null);
+
+// Calendar
+const calMonth = ref(0); // offset from current month
+
+const months = [
+  "jan",
+  "fev",
+  "mar",
+  "abr",
+  "mai",
+  "jun",
+  "jul",
+  "ago",
+  "set",
+  "out",
+  "nov",
+  "dez",
+];
+
+// ── Computed ──
+const pageTitle = computed(() => {
+  const titles = {
+    home: "HOME",
+    workouts: "TREINOS",
+    session: "TREINO ATIVO",
+    history: "HISTÓRICO",
+    progress: "PROGRESSO",
+    settings: "CONFIGURAÇÕES",
+  };
+  return titles[page.value] || "";
+});
+
+const todayFormatted = computed(() => {
+  return new Date().toLocaleDateString("pt-BR", {
+    weekday: "long",
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  });
+});
+
+const selectedWorkoutExercises = computed(() =>
+  selectedWorkout.value
+    ? exercises.value.filter((e) => e.workout_id === selectedWorkout.value._id)
+    : [],
+);
+
+const weekSessions = computed(() => {
+  const now = new Date();
+  const weekAgo = new Date(now.getTime() - 7 * 86400000);
+  return sessions.value.filter((s) => new Date(s.started_at) >= weekAgo).length;
+});
+
+const totalVolume = computed(() => {
+  return sessions.value.reduce((acc, s) => acc + (s.totalVolume || 0), 0);
+});
+
+const streak = computed(() => {
+  let s = 0,
+    d = new Date();
+  d.setHours(0, 0, 0, 0);
+  while (true) {
+    const hasSesh = sessions.value.some((sess) => {
+      const sd = new Date(sess.started_at);
+      sd.setHours(0, 0, 0, 0);
+      return sd.getTime() === d.getTime() && sess.status === "completed";
+    });
+    if (!hasSesh) break;
+    s++;
+    d.setDate(d.getDate() - 1);
+  }
+  return s;
+});
+
+const avgDuration = computed(() => {
+  const c = sessions.value.filter((s) => s.duration_seconds);
+  if (!c.length) return 0;
+  return c.reduce((a, s) => a + s.duration_seconds, 0) / c.length / 60;
+});
+
+const filteredHistory = computed(() => {
+  return sessions.value
+    .filter((s) => {
+      const name = getWorkoutName(s.workout_id).toLowerCase();
+      const matchSearch =
+        !historySearch.value ||
+        name.includes(historySearch.value.toLowerCase());
+      const matchFilter =
+        !historyFilter.value || s.status === historyFilter.value;
+      return matchSearch && matchFilter;
+    })
+    .sort(
+      (a, b) =>
+        new Date(b.started_at).getTime() - new Date(a.started_at).getTime(),
+    );
+});
+
+const timerDisplay = computed(() => {
+  const m = Math.floor(timerSeconds.value / 60);
+  const s = timerSeconds.value % 60;
+  return String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0");
+});
+
+const completedExercises = computed(() => {
+  if (!activeSession.value) return 0;
+  return activeSession.value.exercises.filter((ex) => exerciseComplete(ex))
+    .length;
+});
+
+const sessionVolume = computed(() => {
+  let vol = 0;
+  Object.values(setLogs.value).forEach((sets) => {
+    sets.forEach((s) => {
+      if (s.done) vol += (s.weightLogged || 0) * (s.repsLogged || 0);
+    });
+  });
+  return Math.round(vol * 10) / 10;
+});
+
+// Calendar
+const calendarMonthName = computed(() => {
+  const d = new Date();
+  d.setMonth(d.getMonth() + calMonth.value);
+  return d.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+});
+
+const calendarDays = computed(() => {
+  const now = new Date();
+  const d = new Date(now.getFullYear(), now.getMonth() + calMonth.value, 1);
+  const year = d.getFullYear(),
+    month = d.getMonth();
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const days = [];
+  for (let i = 0; i < firstDay; i++) {
+    const prev = new Date(year, month, -firstDay + i + 1);
+    days.push({
+      n: prev.getDate(),
+      key: "p" + i,
+      inMonth: false,
+      isToday: false,
+      hasSession: false,
+    });
+  }
+  for (let i = 1; i <= daysInMonth; i++) {
+    const thisDate = new Date(year, month, i);
+    const isToday = thisDate.toDateString() === now.toDateString();
+    const hasSession = sessions.value.some((s) => {
+      const sd = new Date(s.started_at);
+      return (
+        sd.getFullYear() === year &&
+        sd.getMonth() === month &&
+        sd.getDate() === i &&
+        s.status === "completed"
+      );
+    });
+    days.push({ n: i, key: "c" + i, inMonth: true, isToday, hasSession });
+  }
+  const remaining = 42 - days.length;
+  for (let i = 1; i <= remaining; i++) {
+    days.push({
+      n: i,
+      key: "n" + i,
+      inMonth: false,
+      isToday: false,
+      hasSession: false,
+    });
+  }
+  return days;
+});
+
+const last28Days = computed(() => {
+  const days = [];
+  for (let i = 27; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    d.setHours(0, 0, 0, 0);
+    const count = sessions.value.filter((s) => {
+      const sd = new Date(s.started_at);
+      sd.setHours(0, 0, 0, 0);
+      return sd.getTime() === d.getTime() && s.status === "completed";
+    }).length;
+    const label = i % 7 === 0 || i === 0 ? months[d.getMonth()] : "";
+    days.push({ count, label });
+  }
+  return days;
+});
+
+// ── Auth ──
+function doLogin() {
+  authError.value = "";
+  if (!authForm.value.email || !authForm.value.password) {
+    authError.value = "Preencha e-mail e senha";
+    return;
+  }
+  // Simulate login (in real app would call /api/auth/login)
+  const stored = JSON.parse(localStorage.getItem("liftnote_users") || "[]");
+  const user = stored.find(
+    (u) =>
+      u.email === authForm.value.email &&
+      u.password === authForm.value.password,
+  );
+  if (user) {
+    currentUser.value = user;
+    editUser.value = { ...user };
+    loadUserData();
+  } else {
+    authError.value = "E-mail ou senha incorretos";
+  }
+}
+
+function doRegister() {
+  authError.value = "";
+  if (
+    !authForm.value.name ||
+    !authForm.value.email ||
+    !authForm.value.password
+  ) {
+    authError.value = "Preencha todos os campos obrigatórios";
+    return;
+  }
+  if (authForm.value.password.length < 6) {
+    authError.value = "Senha deve ter pelo menos 6 caracteres";
+    return;
+  }
+  const stored = JSON.parse(localStorage.getItem("liftnote_users") || "[]");
+  if (stored.find((u) => u.email === authForm.value.email)) {
+    authError.value = "E-mail já cadastrado";
+    return;
+  }
+  const user = {
+    _id: genId(),
+    name: authForm.value.name,
+    email: authForm.value.email,
+    password: authForm.value.password,
+    age: authForm.value.age,
+  };
+  stored.push(user);
+  localStorage.setItem("liftnote_users", JSON.stringify(stored));
+  currentUser.value = user;
+  editUser.value = { ...user };
+  loadUserData();
+}
+
+function doReset() {
+  if (!authForm.value.email) {
+    authError.value = "Informe o e-mail";
+    return;
+  }
+  // Simulate reset email
+  resetSent.value = true;
+  authError.value = "";
+}
+
+function doLogout() {
+  currentUser.value = null;
+  activeSession.value = null;
+  stopTimer();
+  page.value = "home";
+}
+
+function saveProfile() {
+  const stored = JSON.parse(localStorage.getItem("liftnote_users") || "[]");
+  const idx = stored.findIndex((u) => u._id === currentUser.value._id);
+  if (idx >= 0) {
+    stored[idx] = {
+      ...stored[idx],
+      name: editUser.value.name,
+      email: editUser.value.email,
+      age: editUser.value.age,
+    };
+    localStorage.setItem("liftnote_users", JSON.stringify(stored));
+    currentUser.value = stored[idx];
+  }
+  alert("Perfil salvo!");
+}
+
+function changePassword() {
+  if (!pwdForm.value.current || !pwdForm.value.new) {
+    pwdMsg.value = "Preencha todos os campos";
+    pwdMsgOk.value = false;
+    return;
+  }
+  if (pwdForm.value.new !== pwdForm.value.confirm) {
+    pwdMsg.value = "Senhas não conferem";
+    pwdMsgOk.value = false;
+    return;
+  }
+  const stored = JSON.parse(localStorage.getItem("liftnote_users") || "[]");
+  const user = stored.find((u) => u._id === currentUser.value._id);
+  if (user && user.password !== pwdForm.value.current) {
+    pwdMsg.value = "Senha atual incorreta";
+    pwdMsgOk.value = false;
+    return;
+  }
+  user.password = pwdForm.value.new;
+  localStorage.setItem("liftnote_users", JSON.stringify(stored));
+  pwdMsg.value = "Senha alterada com sucesso!";
+  pwdMsgOk.value = true;
+  pwdForm.value = { current: "", new: "", confirm: "" };
+}
+
+function confirmDeleteAccount() {
+  if (confirm("Tem certeza? Esta ação não pode ser desfeita.")) {
+    const stored = JSON.parse(localStorage.getItem("liftnote_users") || "[]");
+    localStorage.setItem(
+      "liftnote_users",
+      JSON.stringify(stored.filter((u) => u._id !== currentUser.value._id)),
+    );
+    localStorage.removeItem("liftnote_data_" + currentUser.value._id);
+    doLogout();
+  }
+}
+
+// ── Data persistence ──
+function loadUserData() {
+  const key = "liftnote_data_" + currentUser.value._id;
+  const data = JSON.parse(
+    localStorage.getItem(key) || '{"workouts":[],"exercises":[],"sessions":[]}',
+  );
+  workouts.value = data.workouts || [];
+  exercises.value = data.exercises || [];
+  sessions.value = data.sessions || [];
+}
+
+function saveData() {
+  if (!currentUser.value) return;
+  const key = "liftnote_data_" + currentUser.value._id;
+  localStorage.setItem(
+    key,
+    JSON.stringify({
+      workouts: workouts.value,
+      exercises: exercises.value,
+      sessions: sessions.value,
+    }),
+  );
+}
+
+watch([workouts, exercises, sessions], saveData, { deep: true });
+
+// ── Workout CRUD ──
+function openModal(m) {
+  modal.value = m;
+}
+
+function selectWorkout(w) {
+  selectedWorkout.value = selectedWorkout.value?._id === w._id ? null : w;
+}
+
+function editWorkout(w) {
+  workoutForm.value = {
+    name: w.name,
+    description: w.description || "",
+    _id: w._id,
+  };
+  modal.value = "editWorkout";
+}
+
+function manageExercises(w) {
+  selectedWorkout.value = w;
+}
+
+function saveWorkout() {
+  if (!workoutForm.value.name.trim()) return;
+  if (modal.value === "createWorkout") {
+    workouts.value.push({
+      _id: genId(),
+      user_id: currentUser.value._id,
+      name: workoutForm.value.name.trim(),
+      description: workoutForm.value.description,
+      exercises: [],
+    });
+  } else {
+    const w = workouts.value.find((w) => w._id === workoutForm.value._id);
+    if (w) {
+      w.name = workoutForm.value.name;
+      w.description = workoutForm.value.description;
+    }
+  }
+  workoutForm.value = { name: "", description: "" };
+  modal.value = null;
+}
+
+function deleteWorkout(id) {
+  if (!confirm("Excluir este treino e todos seus exercícios?")) return;
+  workouts.value = workouts.value.filter((w) => w._id !== id);
+  exercises.value = exercises.value.filter((e) => e.workout_id !== id);
+  if (selectedWorkout.value?._id === id) selectedWorkout.value = null;
+}
+
+// ── Exercise CRUD ──
+function saveExercise() {
+  if (!exerciseForm.value.name.trim() || !selectedWorkout.value) return;
+  exercises.value.push({
+    _id: genId(),
+    workout_id: selectedWorkout.value._id,
+    ...exerciseForm.value,
+    order: selectedWorkoutExercises.value.length,
+  });
+  exerciseForm.value = {
+    name: "",
+    muscle_group: "chest",
+    set_type: "linear",
+    series: 3,
+    reps: 10,
+    weight_kg: 0,
+    rest_seconds: 90,
+    no_rest: false,
+    notes: "",
+    order: 0,
+  };
+  modal.value = null;
+}
+
+function deleteExercise(id) {
+  exercises.value = exercises.value.filter((e) => e._id !== id);
+}
+
+// ── Session ──
+function startSession(workout) {
+  const exs = exercises.value
+    .filter((e) => e.workout_id === workout._id)
+    .sort((a, b) => a.order - b.order);
+  activeSession.value = {
+    _id: genId(),
+    user_id: currentUser.value._id,
+    workout_id: workout._id,
+    workoutName: workout.name,
+    exercises: exs,
+    started_at: new Date().toISOString(),
+    status: "in_progress",
+    notes: "",
+  };
+  // Init set logs
+  setLogs.value = {};
+  exs.forEach((ex) => {
+    const sets = getExSets(ex);
+    setLogs.value[ex._id] = sets.map((s) => ({
+      ...s,
+      weightLogged: s.targetWeight,
+      repsLogged: s.targetReps,
+      done: false,
+    }));
+  });
+  timerSeconds.value = 0;
+  startTimer();
+  activeExerciseIdx.value = 0;
+  navigate("session");
+}
+
+function getExSets(ex) {
+  if (ex.set_type === "pyramid" && ex.pyramid_sets?.length) {
+    return ex.pyramid_sets.map((s) => ({
+      targetReps: s.reps,
+      targetWeight: s.weight_kg,
+    }));
+  }
+  return Array.from({ length: ex.series || 3 }, () => ({
+    targetReps: ex.reps || 10,
+    targetWeight: ex.weight_kg || 0,
+  }));
+}
+
+function logSet(exId, setIdx, field, value) {
+  if (!setLogs.value[exId]) return;
+  if (field === "weight")
+    setLogs.value[exId][setIdx].weightLogged = parseFloat(value) || 0;
+  if (field === "reps")
+    setLogs.value[exId][setIdx].repsLogged = parseInt(value) || 0;
+}
+
+function markSetDone(exId, setIdx) {
+  if (!setLogs.value[exId]) return;
+  setLogs.value[exId][setIdx].done = true;
+}
+
+function exerciseComplete(ex) {
+  const logs = setLogs.value[ex._id];
+  return logs && logs.length > 0 && logs.every((s) => s.done);
+}
+
+async function finishSession() {
+  stopTimer();
+  const sess = {
+    ...activeSession.value,
+    status: "completed",
+    finished_at: new Date().toISOString(),
+    duration_seconds: timerSeconds.value,
+    duration_formatted: timerDisplay.value,
+    totalVolume: sessionVolume.value,
+  };
+  sessions.value.push(sess);
+  finishedSession.value = sess;
+  activeSession.value = null;
+  modal.value = "sessionSummary";
+  navigate("home");
+  // Generate AI summary
+  await generateAISummaryForSession(sess);
+}
+
+function cancelSession() {
+  if (!confirm("Cancelar sessão atual?")) return;
+  stopTimer();
+  const sess = {
+    ...activeSession.value,
+    status: "cancelled",
+    finished_at: new Date().toISOString(),
+    duration_seconds: timerSeconds.value,
+    duration_formatted: timerDisplay.value,
+    totalVolume: 0,
+  };
+  sessions.value.push(sess);
+  activeSession.value = null;
+  navigate("home");
+}
+
+function deleteSession(id) {
+  if (!confirm("Excluir esta sessão?")) return;
+  sessions.value = sessions.value.filter((s) => s._id !== id);
+}
+
+function viewSession(s) {
+  viewingSession.value = s;
+  selectedSessionForAI.value = s;
+  modal.value = "viewSession";
+}
+
+// ── Timer ──
+function startTimer() {
+  timerRunning.value = true;
+  timerInterval = setInterval(() => {
+    timerSeconds.value++;
+  }, 1000);
+}
+function stopTimer() {
+  timerRunning.value = false;
+  if (timerInterval) clearInterval(timerInterval);
+}
+function toggleTimer() {
+  if (timerRunning.value) stopTimer();
+  else startTimer();
+}
+function resetTimer() {
+  timerSeconds.value = 0;
+}
+
+// ── AI ──
+async function generateAISummary() {
+  if (!selectedSessionForAI.value) return;
+  await generateAISummaryForSession(selectedSessionForAI.value);
+}
+
+async function generateAISummaryForSession(sess) {
+  aiLoading.value = true;
+  const wName = getWorkoutName(sess.workout_id);
+  const exs = exercises.value.filter((e) => e.workout_id === sess.workout_id);
+  const exerciseList = exs
+    .map(
+      (e) =>
+        `${e.name} (${e.muscle_group}, ${e.series || "?"}x${e.reps || "?"} @ ${e.weight_kg || 0}kg)`,
+    )
+    .join(", ");
+  const prompt = `Você é um personal trainer especialista. Analise esta sessão de treino e dê um resumo motivacional e técnico em português:
+Treino: ${wName}
+Duração: ${sess.duration_formatted || formatDuration(sess.duration_seconds) || "não registrado"}
+Volume total: ${sess.totalVolume || 0}kg
+Exercícios: ${exerciseList || "não registrados"}
+Notas do usuário: ${sess.notes || "nenhuma"}
+Responda em 2-3 frases, sendo específico sobre o treino realizado. Inclua uma dica técnica ou motivacional.`;
+
+  try {
+    const resp = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 300,
+        messages: [{ role: "user", content: prompt }],
+      }),
+    });
+    const data = await resp.json();
+    const summary =
+      data.content?.map((b) => b.text || "").join("") ||
+      "Ótimo treino! Continue assim.";
+    sess.ai_summary = summary;
+    // Update in sessions array
+    const idx = sessions.value.findIndex((s) => s._id === sess._id);
+    if (idx >= 0) sessions.value[idx].ai_summary = summary;
+    if (finishedSession.value?._id === sess._id)
+      finishedSession.value.ai_summary = summary;
+    if (viewingSession.value?._id === sess._id)
+      viewingSession.value.ai_summary = summary;
+    if (selectedSessionForAI.value?._id === sess._id)
+      selectedSessionForAI.value = {
+        ...selectedSessionForAI.value,
+        ai_summary: summary,
+      };
+  } catch (e) {
+    sess.ai_summary =
+      "Treino concluído! Ótimo trabalho. Continue mantendo a consistência para alcançar seus objetivos.";
+  }
+  aiLoading.value = false;
+}
+
+// ── Helpers ──
+function navigate(p) {
+  if (p === "session" && !activeSession.value) return;
+  page.value = p;
+  sidebarOpen.value = false;
+}
+
+function genId() {
+  return Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
+
+function getWorkoutName(id) {
+  return (
+    workouts.value.find((w) => w._id === id)?.name || "Treino desconhecido"
+  );
+}
+
+function formatDate(d) {
+  return new Date(d).toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function formatDuration(secs) {
+  if (!secs) return null;
+  const m = Math.floor(secs / 60),
+    s = secs % 60;
+  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
+
+function statusLabel(s) {
+  return (
+    {
+      completed: "Completo",
+      in_progress: "Em andamento",
+      cancelled: "Cancelado",
+    }[s] || s
+  );
+}
+
+onUnmounted(() => {
+  if (timerInterval) clearInterval(timerInterval);
+});
+</script>
+
+<style>
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --bg: #0d0d0d;
+  --bg2: #141414;
+  --bg3: #1a1a1a;
+  --bg4: #222222;
+  --surface: #1f1f1f;
+  --surface2: #2a2a2a;
+  --border: rgba(255, 255, 255, 0.08);
+  --border2: rgba(255, 255, 255, 0.14);
+  --accent: #c8f135;
+  --accent-dim: rgba(200, 241, 53, 0.12);
+  --accent-dim2: rgba(200, 241, 53, 0.2);
+  --text: #f0f0f0;
+  --text2: #999;
+  --text3: #555;
+  --red: #ff4d4d;
+  --red-dim: rgba(255, 77, 77, 0.12);
+  --blue: #4da6ff;
+  --blue-dim: rgba(77, 166, 255, 0.12);
+  --orange: #ff9a3c;
+  --orange-dim: rgba(255, 154, 60, 0.12);
+  --font-display: "Bebas Neue", sans-serif;
+  --font: "DM Sans", sans-serif;
+  --font-mono: "DM Mono", monospace;
+  --r: 10px;
+  --r2: 16px;
+  --sidebar: 220px;
+}
+
+html,
+body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 14px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+#app {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ─── SIDEBAR ─── */
+.sidebar {
+  width: var(--sidebar);
+  background: var(--bg2);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  padding: 24px 0;
+  transition: transform 0.3s ease;
+  z-index: 100;
+}
+.sidebar-logo {
+  padding: 0 20px 28px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 16px;
+}
+.logo-icon {
+  width: 32px;
+  height: 32px;
+  background: var(--accent);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 18px;
+  color: #0d0d0d;
+  flex-shrink: 0;
+}
+.logo-text {
+  font-family: var(--font-display);
+  font-size: 22px;
+  letter-spacing: 1px;
+  color: var(--text);
+}
+
+.sidebar-user {
+  padding: 12px 20px 20px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 12px;
+}
+.user-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--accent-dim2);
+  border: 1.5px solid var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 500;
+  font-size: 13px;
+  color: var(--accent);
+  margin-bottom: 8px;
+}
+.user-name {
+  font-weight: 500;
+  font-size: 13px;
+}
+.user-sub {
+  font-size: 11px;
+  color: var(--text2);
+}
+
+.nav-label {
+  padding: 6px 20px;
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  color: var(--text3);
+  text-transform: uppercase;
+  font-weight: 500;
+}
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 20px;
+  cursor: pointer;
+  color: var(--text2);
+  font-size: 13px;
+  font-weight: 400;
+  border-left: 2px solid transparent;
+  transition: all 0.15s;
+  user-select: none;
+}
+.nav-item:hover {
+  color: var(--text);
+  background: var(--bg3);
+}
+.nav-item.active {
+  color: var(--accent);
+  background: var(--accent-dim);
+  border-left-color: var(--accent);
+}
+.nav-icon {
+  font-size: 15px;
+  width: 18px;
+  text-align: center;
+}
+
+.sidebar-bottom {
+  margin-top: auto;
+  padding: 16px 20px 0;
+  border-top: 1px solid var(--border);
+}
+
+/* ─── MAIN ─── */
+.main {
+  flex: 1;
+  overflow-y: auto;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+}
+
+.topbar {
+  padding: 18px 28px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  backdrop-filter: blur(10px);
+}
+.topbar-title {
+  font-family: var(--font-display);
+  font-size: 26px;
+  letter-spacing: 1px;
+}
+.topbar-date {
+  font-size: 12px;
+  color: var(--text2);
+  font-family: var(--font-mono);
+}
+
+.page {
+  padding: 28px;
+  max-width: 1100px;
+  flex: 1;
+}
+
+/* ─── CARDS ─── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r2);
+  padding: 20px;
+}
+.card-sm {
+  padding: 14px 16px;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: var(--r);
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  transition: all 0.15s;
+  user-select: none;
+}
+.btn-accent {
+  background: var(--accent);
+  color: #0d0d0d;
+}
+.btn-accent:hover {
+  background: #d4f550;
+  transform: translateY(-1px);
+}
+.btn-ghost {
+  background: transparent;
+  color: var(--text2);
+  border: 1px solid var(--border2);
+}
+.btn-ghost:hover {
+  background: var(--bg3);
+  color: var(--text);
+}
+.btn-danger {
+  background: var(--red-dim);
+  color: var(--red);
+  border: 1px solid rgba(255, 77, 77, 0.2);
+}
+.btn-danger:hover {
+  background: rgba(255, 77, 77, 0.2);
+}
+.btn-sm {
+  padding: 5px 10px;
+  font-size: 11px;
+  border-radius: 7px;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 500;
+  background: var(--bg4);
+  color: var(--text2);
+  border: 1px solid var(--border);
+}
+.tag-accent {
+  background: var(--accent-dim);
+  color: var(--accent);
+  border-color: rgba(200, 241, 53, 0.25);
+}
+.tag-red {
+  background: var(--red-dim);
+  color: var(--red);
+  border-color: rgba(255, 77, 77, 0.25);
+}
+.tag-blue {
+  background: var(--blue-dim);
+  color: var(--blue);
+  border-color: rgba(77, 166, 255, 0.25);
+}
+.tag-orange {
+  background: var(--orange-dim);
+  color: var(--orange);
+  border-color: rgba(255, 154, 60, 0.25);
+}
+
+input,
+select,
+textarea {
+  background: var(--bg4);
+  border: 1px solid var(--border2);
+  border-radius: var(--r);
+  padding: 9px 13px;
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 13px;
+  width: 100%;
+  outline: none;
+  transition: border-color 0.15s;
+}
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--accent);
+}
+input::placeholder,
+textarea::placeholder {
+  color: var(--text3);
+}
+select option {
+  background: var(--bg4);
+}
+label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text2);
+  display: block;
+  margin-bottom: 5px;
+}
+
+/* ─── STATS ─── */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+}
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r2);
+  padding: 16px;
+}
+.stat-val {
+  font-family: var(--font-display);
+  font-size: 34px;
+  letter-spacing: 1px;
+  line-height: 1;
+  color: var(--accent);
+}
+.stat-label {
+  font-size: 11px;
+  color: var(--text2);
+  margin-top: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+
+/* ─── CALENDAR ─── */
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 3px;
+}
+.cal-day-label {
+  font-size: 10px;
+  color: var(--text3);
+  text-align: center;
+  padding: 4px 0;
+  letter-spacing: 0.5px;
+}
+.cal-day {
+  aspect-ratio: 1;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.12s;
+  color: var(--text2);
+}
+.cal-day:hover {
+  background: var(--bg4);
+  color: var(--text);
+}
+.cal-day.today {
+  border: 1px solid var(--accent);
+  color: var(--accent);
+}
+.cal-day.has-session {
+  background: var(--accent-dim2);
+  color: var(--accent);
+  font-weight: 500;
+}
+.cal-day.other-month {
+  opacity: 0.25;
+}
+
+/* ─── WORKOUT LIST ─── */
+.workout-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: var(--r);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  cursor: pointer;
+  transition: all 0.15s;
+  margin-bottom: 8px;
+}
+.workout-row:hover {
+  border-color: var(--border2);
+  background: var(--bg3);
+}
+.workout-row.selected {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+.workout-num {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--bg4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 16px;
+  color: var(--text2);
+  flex-shrink: 0;
+}
+.workout-info {
+  flex: 1;
+}
+.workout-name {
+  font-weight: 500;
+  font-size: 14px;
+}
+.workout-meta {
+  font-size: 11px;
+  color: var(--text2);
+  margin-top: 2px;
+}
+
+/* ─── SESSION / TIMER ─── */
+.timer-display {
+  font-family: var(--font-display);
+  font-size: 64px;
+  letter-spacing: 4px;
+  color: var(--accent);
+  text-align: center;
+  padding: 20px 0;
+  line-height: 1;
+}
+.exercise-card {
+  border: 1px solid var(--border);
+  border-radius: var(--r2);
+  margin-bottom: 10px;
+  overflow: hidden;
+  transition: border-color 0.15s;
+}
+.exercise-card.active-ex {
+  border-color: var(--accent);
+}
+.exercise-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--surface);
+  cursor: pointer;
+}
+.exercise-sets {
+  padding: 0 16px 12px;
+  background: var(--bg3);
+}
+.set-row {
+  display: grid;
+  grid-template-columns: 28px 1fr 1fr 80px;
+  gap: 8px;
+  align-items: center;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--border);
+}
+.set-row:last-child {
+  border-bottom: none;
+}
+.set-num {
+  font-size: 11px;
+  color: var(--text3);
+  font-family: var(--font-mono);
+}
+.set-done {
+  color: var(--accent);
+}
+
+/* ─── AI SUMMARY ─── */
+.ai-bubble {
+  background: linear-gradient(
+    135deg,
+    rgba(200, 241, 53, 0.06),
+    rgba(77, 166, 255, 0.06)
+  );
+  border: 1px solid rgba(200, 241, 53, 0.2);
+  border-radius: var(--r2);
+  padding: 18px 20px;
+  position: relative;
+}
+.ai-label {
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--accent);
+  font-weight: 500;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.ai-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: pulse 1.8s infinite;
+}
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+
+/* ─── CHART BAR ─── */
+.progress-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  height: 80px;
+}
+.bar-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.bar-fill {
+  width: 100%;
+  border-radius: 4px 4px 0 0;
+  background: var(--bg4);
+  transition: height 0.4s ease;
+  min-height: 4px;
+}
+.bar-fill.active-bar {
+  background: var(--accent);
+}
+.bar-label {
+  font-size: 9px;
+  color: var(--text3);
+  font-family: var(--font-mono);
+}
+
+/* ─── AUTH ─── */
+.auth-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  background-image: radial-gradient(
+    ellipse 60% 40% at 50% -10%,
+    rgba(200, 241, 53, 0.08) 0%,
+    transparent 70%
+  );
+}
+.auth-card {
+  width: 380px;
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 20px;
+  padding: 36px 32px;
+}
+.auth-logo {
+  text-align: center;
+  margin-bottom: 28px;
+}
+.auth-logo-icon {
+  width: 52px;
+  height: 52px;
+  background: var(--accent);
+  border-radius: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 28px;
+  color: #0d0d0d;
+  margin-bottom: 10px;
+}
+.auth-title {
+  font-family: var(--font-display);
+  font-size: 32px;
+  letter-spacing: 1px;
+}
+.auth-sub {
+  font-size: 12px;
+  color: var(--text2);
+  margin-top: 4px;
+}
+.form-group {
+  margin-bottom: 16px;
+}
+.auth-divider {
+  text-align: center;
+  font-size: 11px;
+  color: var(--text3);
+  margin: 14px 0;
+}
+.auth-link {
+  color: var(--accent);
+  cursor: pointer;
+  text-decoration: none;
+}
+.auth-link:hover {
+  text-decoration: underline;
+}
+.error-msg {
+  color: var(--red);
+  font-size: 12px;
+  margin-top: 6px;
+  padding: 8px 12px;
+  background: var(--red-dim);
+  border-radius: 7px;
+}
+
+/* ─── MODAL ─── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  padding: 20px;
+  backdrop-filter: blur(4px);
+}
+.modal {
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  border-radius: 20px;
+  padding: 28px;
+  width: 100%;
+  max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+.modal-title {
+  font-family: var(--font-display);
+  font-size: 24px;
+  margin-bottom: 20px;
+}
+.modal-close {
+  float: right;
+  cursor: pointer;
+  color: var(--text2);
+  font-size: 20px;
+  line-height: 1;
+}
+.modal-close:hover {
+  color: var(--text);
+}
+
+/* ─── BADGE ─── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 500;
+  padding: 0 5px;
+  background: var(--accent);
+  color: #0d0d0d;
+}
+
+/* ─── HISTORY ─── */
+.history-item {
+  display: flex;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--r2);
+  background: var(--surface);
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.history-item:hover {
+  border-color: var(--border2);
+}
+.history-date {
+  width: 42px;
+  text-align: center;
+  flex-shrink: 0;
+}
+.history-date-day {
+  font-family: var(--font-display);
+  font-size: 26px;
+  line-height: 1;
+  color: var(--accent);
+}
+.history-date-month {
+  font-size: 10px;
+  color: var(--text2);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* ─── SEPARATOR ─── */
+.sep {
+  height: 1px;
+  background: var(--border);
+  margin: 16px 0;
+}
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+.flex-end {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+h2 {
+  font-family: var(--font-display);
+  font-size: 22px;
+  letter-spacing: 0.5px;
+  margin-bottom: 16px;
+}
+h3 {
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 10px;
+}
+.muted {
+  color: var(--text2);
+}
+.mono {
+  font-family: var(--font-mono);
+}
+.mt {
+  margin-top: 20px;
+}
+.mb {
+  margin-bottom: 12px;
+}
+.empty-state {
+  text-align: center;
+  padding: 48px 20px;
+  color: var(--text3);
+}
+.empty-icon {
+  font-size: 32px;
+  margin-bottom: 12px;
+}
+.empty-text {
+  font-size: 13px;
+}
+
+/* ─── SCROLLBAR ─── */
+::-webkit-scrollbar {
+  width: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--bg4);
+  border-radius: 3px;
+}
+
+/* ─── TRANSITION ─── */
+.fade-enter-active,
+.fade-leave-active {
+  transition:
+    opacity 0.2s,
+    transform 0.2s;
+}
+.fade-enter-from {
+  opacity: 0;
+  transform: translateY(8px);
+}
+.fade-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
+@media (max-width: 700px) {
+  :root {
+    --sidebar: 0px;
+  }
+  .sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 240px;
+    transform: translateX(-100%);
+  }
+  .sidebar.open {
+    transform: translateX(0);
+  }
+  .page {
+    padding: 16px;
+  }
+  .topbar {
+    padding: 14px 16px;
+  }
+  .timer-display {
+    font-size: 48px;
+  }
+  .grid-2,
+  .grid-3 {
+    grid-template-columns: 1fr;
+  }
+}
+</style>

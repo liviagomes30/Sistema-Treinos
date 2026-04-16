@@ -1,4 +1,4 @@
-const { WorkoutSession, ExerciseLog, Exercise } = require("../models");
+const { WorkoutSession, ExerciseLog, Exercise, Workout } = require("../models");
 
 /**
  * POST /api/ai/analyze/:sessionId
@@ -119,6 +119,13 @@ const analyzeProgress = async (req, res) => {
     const exercise = await Exercise.findById(req.params.exerciseId);
     if (!exercise)
       return res.status(404).json({ message: "Exercício não encontrado" });
+
+    // Verifica se o workout do exercício pertence ao usuário logado
+    const ownsWorkout = await Workout.findOne({
+      _id: exercise.workout_id,
+      user_id: req.user._id,
+    });
+    if (!ownsWorkout) return res.status(403).json({ message: "Acesso negado" });
 
     // Busca últimos 10 registros históricos do exercício
     const logs = await ExerciseLog.find({ exercise_id: req.params.exerciseId })

@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { MUSCLE_GROUPS, SET_TYPES } = require("../constants/enums");
 
 // Sub-schema para configuração de pirâmide
 // Ex: 4 séries com pesos/reps diferentes por série
@@ -29,21 +30,7 @@ const exerciseSchema = new mongoose.Schema(
       type: String,
       trim: true,
       enum: {
-        values: [
-          "chest",
-          "back",
-          "shoulders",
-          "biceps",
-          "triceps",
-          "forearms",
-          "abs",
-          "glutes",
-          "quadriceps",
-          "hamstrings",
-          "calves",
-          "full_body",
-          "other",
-        ],
+        values: MUSCLE_GROUPS,
         message: "Grupo muscular inválido",
       },
       default: "other",
@@ -51,7 +38,7 @@ const exerciseSchema = new mongoose.Schema(
     set_type: {
       type: String,
       enum: {
-        values: ["linear", "pyramid"],
+        values: SET_TYPES,
         message: "Tipo de série deve ser linear ou pyramid",
       },
       default: "linear",

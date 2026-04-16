@@ -82,22 +82,23 @@ const create = async (req, res) => {
 const update = async (req, res) => {
   try {
     const { status, ai_summary } = req.body;
-    const updateData = {};
 
-    if (status) updateData.status = status;
-    if (ai_summary) updateData.ai_summary = ai_summary;
-
-    if (status === "completed") {
-      updateData.finished_at = new Date();
-    }
-
-    const session = await WorkoutSession.findOneAndUpdate(
-      { _id: req.params.id, user_id: req.user._id },
-      updateData,
-      { new: true, runValidators: true },
-    );
+    const session = await WorkoutSession.findOne({
+      _id: req.params.id,
+      user_id: req.user._id,
+    });
     if (!session)
       return res.status(404).json({ message: "Sessão não encontrada" });
+
+    if (status) session.status = status;
+    if (ai_summary) session.ai_summary = ai_summary;
+
+    // Seta finished_at para disparar o cálculo de duration_seconds no hook pre('save')
+    if (status === "completed" && !session.finished_at) {
+      session.finished_at = new Date();
+    }
+
+    await session.save();
     res.json(session);
   } catch (err) {
     res.status(400).json({ message: err.message });
