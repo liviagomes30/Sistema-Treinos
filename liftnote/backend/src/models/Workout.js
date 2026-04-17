@@ -29,15 +29,13 @@ const workoutSchema = new mongoose.Schema(
   },
 );
 
-// Virtual: lista de exercícios do treino (populado sob demanda)
-workoutSchema.virtual("exercises", {
-  ref: "Exercise",
+workoutSchema.virtual("workout_exercises", {
+  ref: "WorkoutExercise",
   localField: "_id",
   foreignField: "workout_id",
   options: { sort: { order: 1 } },
 });
 
-// Índice composto: garante pesquisa rápida por usuário + nome
 workoutSchema.index({ user_id: 1, name: 1 });
 
 module.exports = mongoose.model("Workout", workoutSchema);

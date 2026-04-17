@@ -1,18 +1,16 @@
 const mongoose = require("mongoose");
-const { MUSCLE_GROUPS, SET_TYPES } = require("../constants/enums");
+const { SET_TYPES } = require("../constants/enums");
 
-// Sub-schema para configuração de pirâmide
-// Ex: 4 séries com pesos/reps diferentes por série
 const pyramidSetSchema = new mongoose.Schema(
   {
-    set_number: { type: Number, required: true },
+    set_number: { type: Number, required: true, min: 1 },
     reps: { type: Number, required: true, min: 1 },
     weight_kg: { type: Number, required: true, min: 0 },
   },
   { _id: false },
 );
 
-const exerciseSchema = new mongoose.Schema(
+const workoutExerciseSchema = new mongoose.Schema(
   {
     workout_id: {
       type: mongoose.Schema.Types.ObjectId,
@@ -20,20 +18,17 @@ const exerciseSchema = new mongoose.Schema(
       required: [true, "Treino é obrigatório"],
       index: true,
     },
-    name: {
-      type: String,
-      required: [true, "Nome do exercício é obrigatório"],
-      trim: true,
-      maxlength: [150, "Nome deve ter no máximo 150 caracteres"],
+    exercise_catalog_id: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "ExerciseCatalog",
+      required: [true, "Exercício do catálogo é obrigatório"],
+      index: true,
     },
-    muscle_group: {
+    custom_name: {
       type: String,
       trim: true,
-      enum: {
-        values: MUSCLE_GROUPS,
-        message: "Grupo muscular inválido",
-      },
-      default: "other",
+      maxlength: [150, "Nome customizado deve ter no máximo 150 caracteres"],
+      default: null,
     },
     set_type: {
       type: String,
@@ -44,15 +39,16 @@ const exerciseSchema = new mongoose.Schema(
       default: "linear",
     },
 
-    // Campos para série LINEAR (mesmo peso/reps em todas as séries)
     series: {
       type: Number,
       min: [1, "Mínimo 1 série"],
       max: [20, "Máximo 20 séries"],
+      default: null,
     },
     reps: {
       type: Number,
       min: [1, "Mínimo 1 repetição"],
+      default: null,
     },
     weight_kg: {
       type: Number,
@@ -60,7 +56,6 @@ const exerciseSchema = new mongoose.Schema(
       default: 0,
     },
 
-    // Campos para série PIRÂMIDE (peso/reps por série)
     pyramid_sets: {
       type: [pyramidSetSchema],
       default: [],
@@ -69,7 +64,7 @@ const exerciseSchema = new mongoose.Schema(
     rest_seconds: {
       type: Number,
       min: [0, "Descanso não pode ser negativo"],
-      default: 120, // 2 minutos padrão
+      default: 120,
     },
     no_rest: {
       type: Boolean,
@@ -83,17 +78,22 @@ const exerciseSchema = new mongoose.Schema(
     },
     order: {
       type: Number,
-      default: 0, // posição do exercício dentro do treino
+      default: 0,
+    },
+    is_optional: {
+      type: Boolean,
+      default: false,
     },
   },
   {
     timestamps: { createdAt: "created_at", updatedAt: "updated_at" },
     versionKey: false,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
   },
 );
 
-// Validação: pirâmide exige pyramid_sets preenchido
-exerciseSchema.pre("save", function (next) {
+workoutExerciseSchema.pre("save", function (next) {
   if (
     this.set_type === "pyramid" &&
     (!this.pyramid_sets || this.pyramid_sets.length === 0)
@@ -102,12 +102,19 @@ exerciseSchema.pre("save", function (next) {
       new Error("Série pirâmide exige ao menos uma configuração de série"),
     );
   }
+
   if (this.set_type === "linear" && (!this.series || !this.reps)) {
     return next(new Error("Série linear exige número de séries e repetições"));
   }
+
   next();
 });
 
-exerciseSchema.index({ workout_id: 1, order: 1 });
+workoutExerciseSchema.virtual("display_name").get(function () {
+  return this.custom_name || null;
+});
 
-module.exports = mongoose.model("Exercise", exerciseSchema);
+workoutExerciseSchema.index({ workout_id: 1, order: 1 });
+workoutExerciseSchema.index({ workout_id: 1, exercise_catalog_id: 1 });
+
+module.exports = mongoose.model("WorkoutExercise", workoutExerciseSchema);

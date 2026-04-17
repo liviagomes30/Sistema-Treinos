@@ -37,7 +37,14 @@ const getOne = async (req, res) => {
       .populate("workout_id", "name")
       .populate({
         path: "logs",
-        populate: { path: "exercise_id", select: "name muscle_group" },
+        populate: {
+          path: "workout_exercise_id",
+          select: "custom_name set_type order exercise_catalog_id",
+          populate: {
+            path: "exercise_catalog_id",
+            select: "name muscle_group",
+          },
+        },
       });
 
     if (!session)
@@ -60,7 +67,6 @@ const create = async (req, res) => {
     if (!workout)
       return res.status(404).json({ message: "Treino não encontrado" });
 
-    // Cancela qualquer sessão em andamento do mesmo usuário
     await WorkoutSession.updateMany(
       { user_id: req.user._id, status: "in_progress" },
       { status: "cancelled" },
@@ -93,7 +99,6 @@ const update = async (req, res) => {
     if (status) session.status = status;
     if (ai_summary) session.ai_summary = ai_summary;
 
-    // Seta finished_at para disparar o cálculo de duration_seconds no hook pre('save')
     if (status === "completed" && !session.finished_at) {
       session.finished_at = new Date();
     }

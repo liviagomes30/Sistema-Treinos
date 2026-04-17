@@ -1,6 +1,10 @@
-const { ExerciseLog, WorkoutSession, Exercise } = require("../models");
+const {
+  ExerciseLog,
+  WorkoutSession,
+  WorkoutExercise,
+  Workout,
+} = require("../models");
 
-// Verifica se a sessão pertence ao usuário
 const ownsSession = async (sessionId, userId) => {
   const session = await WorkoutSession.findOne({
     _id: sessionId,
@@ -17,7 +21,14 @@ const getAll = async (req, res) => {
     }
 
     const logs = await ExerciseLog.find({ session_id: req.params.sessionId })
-      .populate("exercise_id", "name muscle_group")
+      .populate({
+        path: "workout_exercise_id",
+        select: "custom_name set_type order exercise_catalog_id",
+        populate: {
+          path: "exercise_catalog_id",
+          select: "name muscle_group",
+        },
+      })
       .sort({ logged_at: 1 });
 
     res.json(logs);
@@ -26,22 +37,41 @@ const getAll = async (req, res) => {
   }
 };
 
-// GET /api/exercises/:exerciseId/history  — histórico de um exercício específico
+// GET /api/catalog/:catalogId/history
+// Histórico do usuário para um exercício do catálogo (somado entre todos os treinos)
 const getHistory = async (req, res) => {
   try {
-    // Busca todos os logs do exercício agrupados por sessão
-    const logs = await ExerciseLog.find({ exercise_id: req.params.exerciseId })
+    const { catalogId } = req.params;
+
+    const userWorkouts = await Workout.find({ user_id: req.user._id }).select(
+      "_id",
+    );
+    const workoutIds = userWorkouts.map((w) => w._id);
+
+    const workoutExercises = await WorkoutExercise.find({
+      exercise_catalog_id: catalogId,
+      workout_id: { $in: workoutIds },
+    }).select("_id");
+
+    const weIds = workoutExercises.map((we) => we._id);
+    if (!weIds.length) return res.json([]);
+
+    const logs = await ExerciseLog.find({
+      workout_exercise_id: { $in: weIds },
+    })
       .populate({
         path: "session_id",
         match: { user_id: req.user._id },
-        select: "started_at status",
+        select: "started_at status workout_id",
+      })
+      .populate({
+        path: "workout_exercise_id",
+        select: "custom_name workout_id",
       })
       .sort({ logged_at: -1 })
       .limit(100);
 
-    // Filtra apenas logs de sessões que pertencem ao usuário
     const filtered = logs.filter((l) => l.session_id !== null);
-
     res.json(filtered);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -57,22 +87,26 @@ const create = async (req, res) => {
       return res.status(400).json({ message: "Sessão não está em andamento" });
     }
 
-    const { exercise_id, set_number, reps_done, weight_used_kg, notes } =
-      req.body;
+    const {
+      workout_exercise_id,
+      set_number,
+      reps_done,
+      weight_used_kg,
+      notes,
+    } = req.body;
 
-    // Valida que o exercício pertence ao treino da sessão
-    const exercise = await Exercise.findOne({
-      _id: exercise_id,
+    const workoutExercise = await WorkoutExercise.findOne({
+      _id: workout_exercise_id,
       workout_id: session.workout_id,
     });
-    if (!exercise)
+    if (!workoutExercise)
       return res
         .status(404)
         .json({ message: "Exercício não encontrado neste treino" });
 
     const log = await ExerciseLog.create({
       session_id: req.params.sessionId,
-      exercise_id,
+      workout_exercise_id,
       set_number,
       reps_done,
       weight_used_kg,

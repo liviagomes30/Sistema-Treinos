@@ -1,8 +1,37 @@
-const { WorkoutSession, ExerciseLog, Exercise, Workout } = require("../models");
+const {
+  WorkoutSession,
+  ExerciseLog,
+  WorkoutExercise,
+  ExerciseCatalog,
+  Workout,
+} = require("../models");
+
+// Helper: resolve o nome "exibido" de um WorkoutExercise (custom_name > catalog.name)
+const displayName = (we) => {
+  if (!we) return "Exercício desconhecido";
+  if (we.custom_name) return we.custom_name;
+  return we.exercise_catalog_id?.name || "Exercício desconhecido";
+};
+
+const callAnthropic = async (prompt, maxTokens = 512) => {
+  const response = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": process.env.ANTHROPIC_API_KEY,
+      "anthropic-version": "2023-06-01",
+    },
+    body: JSON.stringify({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: maxTokens,
+      messages: [{ role: "user", content: prompt }],
+    }),
+  });
+  return response;
+};
 
 /**
  * POST /api/ai/analyze/:sessionId
- * Analisa o desempenho da sessão finalizada e salva o resumo no campo ai_summary
  */
 const analyzeSession = async (req, res) => {
   try {
@@ -19,11 +48,11 @@ const analyzeSession = async (req, res) => {
         .json({ message: "A sessão precisa estar finalizada para análise" });
     }
 
-    // Busca todos os logs da sessão com dados do exercício
-    const logs = await ExerciseLog.find({ session_id: session._id }).populate(
-      "exercise_id",
-      "name muscle_group",
-    );
+    const logs = await ExerciseLog.find({ session_id: session._id }).populate({
+      path: "workout_exercise_id",
+      select: "custom_name exercise_catalog_id",
+      populate: { path: "exercise_catalog_id", select: "name muscle_group" },
+    });
 
     if (!logs.length) {
       return res
@@ -31,10 +60,9 @@ const analyzeSession = async (req, res) => {
         .json({ message: "Nenhum registro encontrado nesta sessão" });
     }
 
-    // Agrupa logs por exercício para montar o histórico
     const grouped = {};
     for (const log of logs) {
-      const name = log.exercise_id?.name || "Exercício desconhecido";
+      const name = displayName(log.workout_exercise_id);
       if (!grouped[name]) grouped[name] = [];
       grouped[name].push({
         serie: log.set_number,
@@ -43,7 +71,6 @@ const analyzeSession = async (req, res) => {
       });
     }
 
-    // Monta o resumo textual para mandar à IA
     const workoutName = session.workout_id?.name || "Treino";
     const duration = session.duration_seconds
       ? `${Math.floor(session.duration_seconds / 60)} minutos`
@@ -72,21 +99,7 @@ Com base nesses dados, forneça uma análise motivadora e objetiva em português
 
 Seja direto, use no máximo 200 palavras e mantenha um tom encorajador.`;
 
-    // Chama a API da Anthropic
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": process.env.ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: "claude-haiku-4-5-20251001",
-        max_tokens: 512,
-        messages: [{ role: "user", content: prompt }],
-      }),
-    });
-
+    const response = await callAnthropic(prompt, 512);
     if (!response.ok) {
       const err = await response.json();
       console.error("Erro na API Anthropic:", err);
@@ -99,7 +112,6 @@ Seja direto, use no máximo 200 palavras e mantenha um tom encorajador.`;
     const ai_summary =
       data.content?.[0]?.text || "Não foi possível gerar a análise.";
 
-    // Salva o resumo na sessão
     session.ai_summary = ai_summary;
     await session.save({ validateBeforeSave: false });
 
@@ -111,24 +123,42 @@ Seja direto, use no máximo 200 palavras e mantenha um tom encorajador.`;
 };
 
 /**
- * GET /api/ai/progress/:exerciseId
- * Analisa a evolução histórica de um exercício específico do usuário
+ * GET /api/ai/progress/:catalogId
+ * Analisa evolução do usuário para um exercício do catálogo (em todos os treinos)
  */
 const analyzeProgress = async (req, res) => {
   try {
-    const exercise = await Exercise.findById(req.params.exerciseId);
-    if (!exercise)
-      return res.status(404).json({ message: "Exercício não encontrado" });
+    const { catalogId } = req.params;
 
-    // Verifica se o workout do exercício pertence ao usuário logado
-    const ownsWorkout = await Workout.findOne({
-      _id: exercise.workout_id,
-      user_id: req.user._id,
+    const catalog = await ExerciseCatalog.findOne({
+      _id: catalogId,
+      $or: [{ is_system: true }, { created_by_user_id: req.user._id }],
     });
-    if (!ownsWorkout) return res.status(403).json({ message: "Acesso negado" });
+    if (!catalog)
+      return res
+        .status(404)
+        .json({ message: "Exercício do catálogo não encontrado" });
 
-    // Busca últimos 10 registros históricos do exercício
-    const logs = await ExerciseLog.find({ exercise_id: req.params.exerciseId })
+    const userWorkouts = await Workout.find({ user_id: req.user._id }).select(
+      "_id",
+    );
+    const workoutIds = userWorkouts.map((w) => w._id);
+
+    const workoutExercises = await WorkoutExercise.find({
+      exercise_catalog_id: catalogId,
+      workout_id: { $in: workoutIds },
+    }).select("_id");
+    const weIds = workoutExercises.map((we) => we._id);
+
+    if (!weIds.length) {
+      return res.status(400).json({
+        message: "Nenhum treino do usuário usa este exercício",
+      });
+    }
+
+    const logs = await ExerciseLog.find({
+      workout_exercise_id: { $in: weIds },
+    })
       .populate({
         path: "session_id",
         match: { user_id: req.user._id, status: "completed" },
@@ -155,7 +185,7 @@ const analyzeProgress = async (req, res) => {
       })
       .join("\n");
 
-    const prompt = `Você é um personal trainer analisando a evolução de um aluno no exercício "${exercise.name}" (${exercise.muscle_group}).
+    const prompt = `Você é um personal trainer analisando a evolução de um aluno no exercício "${catalog.name}" (${catalog.muscle_group}).
 
 Histórico de execuções (mais recente primeiro):
 ${historyText}
@@ -167,20 +197,7 @@ Forneça uma análise de progressão em português com:
 
 Seja objetivo, use no máximo 150 palavras.`;
 
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": process.env.ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: "claude-haiku-4-5-20251001",
-        max_tokens: 400,
-        messages: [{ role: "user", content: prompt }],
-      }),
-    });
-
+    const response = await callAnthropic(prompt, 400);
     if (!response.ok) {
       return res
         .status(502)
@@ -191,7 +208,7 @@ Seja objetivo, use no máximo 150 palavras.`;
     const analysis =
       data.content?.[0]?.text || "Não foi possível gerar a análise.";
 
-    res.json({ exercise: exercise.name, analysis });
+    res.json({ exercise: catalog.name, analysis });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: err.message });

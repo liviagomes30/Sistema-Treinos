@@ -1,9 +1,23 @@
-const { Exercise, Workout } = require("../models");
+const {
+  WorkoutExercise,
+  Workout,
+  ExerciseCatalog,
+  ExerciseLog,
+} = require("../models");
 
-// Verifica se o workout pertence ao usuário logado
 const ownsWorkout = async (workoutId, userId) => {
   const workout = await Workout.findOne({ _id: workoutId, user_id: userId });
   return !!workout;
+};
+
+// Verifica se o exercício do catálogo está acessível ao usuário
+const catalogAccessible = async (catalogId, userId) => {
+  const item = await ExerciseCatalog.findOne({
+    _id: catalogId,
+    is_active: true,
+    $or: [{ is_system: true }, { created_by_user_id: userId }],
+  });
+  return !!item;
 };
 
 // GET /api/workouts/:workoutId/exercises
@@ -13,10 +27,13 @@ const getAll = async (req, res) => {
       return res.status(403).json({ message: "Acesso negado" });
     }
 
-    const exercises = await Exercise.find({
+    const items = await WorkoutExercise.find({
       workout_id: req.params.workoutId,
-    }).sort({ order: 1 });
-    res.json(exercises);
+    })
+      .populate("exercise_catalog_id", "name muscle_group image_url")
+      .sort({ order: 1 });
+
+    res.json(items);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -29,13 +46,17 @@ const getOne = async (req, res) => {
       return res.status(403).json({ message: "Acesso negado" });
     }
 
-    const exercise = await Exercise.findOne({
+    const item = await WorkoutExercise.findOne({
       _id: req.params.id,
       workout_id: req.params.workoutId,
-    });
-    if (!exercise)
+    }).populate(
+      "exercise_catalog_id",
+      "name muscle_group description instructions image_url",
+    );
+
+    if (!item)
       return res.status(404).json({ message: "Exercício não encontrado" });
-    res.json(exercise);
+    res.json(item);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -48,18 +69,32 @@ const create = async (req, res) => {
       return res.status(403).json({ message: "Acesso negado" });
     }
 
-    // Define a ordem como último da lista
-    const lastExercise = await Exercise.findOne({
+    const { exercise_catalog_id } = req.body;
+    if (!exercise_catalog_id) {
+      return res
+        .status(400)
+        .json({ message: "exercise_catalog_id é obrigatório" });
+    }
+
+    if (!(await catalogAccessible(exercise_catalog_id, req.user._id))) {
+      return res.status(400).json({
+        message: "Exercício do catálogo inválido ou não acessível",
+      });
+    }
+
+    const last = await WorkoutExercise.findOne({
       workout_id: req.params.workoutId,
     }).sort({ order: -1 });
-    const order = lastExercise ? lastExercise.order + 1 : 0;
+    const order = last ? last.order + 1 : 0;
 
-    const exercise = await Exercise.create({
+    const item = await WorkoutExercise.create({
       ...req.body,
       workout_id: req.params.workoutId,
       order,
     });
-    res.status(201).json(exercise);
+
+    await item.populate("exercise_catalog_id", "name muscle_group image_url");
+    res.status(201).json(item);
   } catch (err) {
     res.status(400).json({ message: err.message });
   }
@@ -72,14 +107,26 @@ const update = async (req, res) => {
       return res.status(403).json({ message: "Acesso negado" });
     }
 
-    const exercise = await Exercise.findOneAndUpdate(
-      { _id: req.params.id, workout_id: req.params.workoutId },
-      req.body,
-      { new: true, runValidators: true },
-    );
-    if (!exercise)
+    if (req.body.exercise_catalog_id) {
+      if (!(await catalogAccessible(req.body.exercise_catalog_id, req.user._id))) {
+        return res.status(400).json({
+          message: "Exercício do catálogo inválido ou não acessível",
+        });
+      }
+    }
+
+    const item = await WorkoutExercise.findOne({
+      _id: req.params.id,
+      workout_id: req.params.workoutId,
+    });
+    if (!item)
       return res.status(404).json({ message: "Exercício não encontrado" });
-    res.json(exercise);
+
+    Object.assign(item, req.body);
+    await item.save();
+    await item.populate("exercise_catalog_id", "name muscle_group image_url");
+
+    res.json(item);
   } catch (err) {
     res.status(400).json({ message: err.message });
   }
@@ -92,12 +139,15 @@ const remove = async (req, res) => {
       return res.status(403).json({ message: "Acesso negado" });
     }
 
-    const exercise = await Exercise.findOneAndDelete({
+    const item = await WorkoutExercise.findOneAndDelete({
       _id: req.params.id,
       workout_id: req.params.workoutId,
     });
-    if (!exercise)
+    if (!item)
       return res.status(404).json({ message: "Exercício não encontrado" });
+
+    await ExerciseLog.deleteMany({ workout_exercise_id: item._id });
+
     res.json({ message: "Exercício removido com sucesso" });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -112,10 +162,14 @@ const reorder = async (req, res) => {
       return res.status(403).json({ message: "Acesso negado" });
     }
 
-    const updates = req.body; // array de { id, order }
+    const updates = req.body;
+    if (!Array.isArray(updates)) {
+      return res.status(400).json({ message: "Corpo deve ser um array" });
+    }
+
     await Promise.all(
       updates.map(({ id, order }) =>
-        Exercise.findOneAndUpdate(
+        WorkoutExercise.findOneAndUpdate(
           { _id: id, workout_id: req.params.workoutId },
           { order },
         ),

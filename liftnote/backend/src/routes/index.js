@@ -4,15 +4,27 @@ const router = express.Router();
 const auth = require("../middlewares/auth");
 const authController = require("../controllers/authController");
 const workoutController = require("../controllers/workoutController");
-const exerciseController = require("../controllers/exerciseController");
+const workoutExerciseController = require("../controllers/workoutExerciseController");
+const exerciseCatalogController = require("../controllers/exerciseCatalogController");
 const sessionController = require("../controllers/sessionController");
 const logController = require("../controllers/logsController");
+const aiController = require("../controllers/aiController");
 
 // ─── AUTH (público) ────────────────────────────────────────────
 router.post("/auth/register", authController.register);
 router.post("/auth/login", authController.login);
 router.post("/auth/forgot-password", authController.forgotPassword);
 router.post("/auth/reset-password", authController.resetPassword);
+
+// ─── CATÁLOGO GLOBAL DE EXERCÍCIOS ────────────────────────────
+router.get("/catalog", auth, exerciseCatalogController.getAll);
+router.post("/catalog", auth, exerciseCatalogController.create);
+router.get("/catalog/:id", auth, exerciseCatalogController.getOne);
+router.put("/catalog/:id", auth, exerciseCatalogController.update);
+router.delete("/catalog/:id", auth, exerciseCatalogController.remove);
+
+// Histórico do usuário em um exercício do catálogo (cross-workouts)
+router.get("/catalog/:catalogId/history", auth, logController.getHistory);
 
 // ─── WORKOUTS ─────────────────────────────────────────────────
 router.get("/workouts", auth, workoutController.getAll);
@@ -21,28 +33,37 @@ router.post("/workouts", auth, workoutController.create);
 router.put("/workouts/:id", auth, workoutController.update);
 router.delete("/workouts/:id", auth, workoutController.remove);
 
-// ─── EXERCISES (aninhado em workout) ──────────────────────────
-router.get("/workouts/:workoutId/exercises", auth, exerciseController.getAll);
+// ─── WORKOUT EXERCISES (aninhado em workout) ──────────────────
+// ATENÇÃO: /reorder antes de /:id para não ser capturado como parâmetro
+router.patch(
+  "/workouts/:workoutId/exercises/reorder",
+  auth,
+  workoutExerciseController.reorder,
+);
+router.get(
+  "/workouts/:workoutId/exercises",
+  auth,
+  workoutExerciseController.getAll,
+);
 router.get(
   "/workouts/:workoutId/exercises/:id",
   auth,
-  exerciseController.getOne,
+  workoutExerciseController.getOne,
 );
-router.post("/workouts/:workoutId/exercises", auth, exerciseController.create);
+router.post(
+  "/workouts/:workoutId/exercises",
+  auth,
+  workoutExerciseController.create,
+);
 router.put(
   "/workouts/:workoutId/exercises/:id",
   auth,
-  exerciseController.update,
+  workoutExerciseController.update,
 );
 router.delete(
   "/workouts/:workoutId/exercises/:id",
   auth,
-  exerciseController.remove,
-);
-router.patch(
-  "/workouts/:workoutId/exercises/reorder",
-  auth,
-  exerciseController.reorder,
+  workoutExerciseController.remove,
 );
 
 // ─── SESSIONS ─────────────────────────────────────────────────
@@ -58,7 +79,8 @@ router.post("/sessions/:sessionId/logs", auth, logController.create);
 router.put("/sessions/:sessionId/logs/:id", auth, logController.update);
 router.delete("/sessions/:sessionId/logs/:id", auth, logController.remove);
 
-// Histórico de um exercício específico (para a tela de progresso)
-router.get("/exercises/:exerciseId/history", auth, logController.getHistory);
+// ─── AI ───────────────────────────────────────────────────────
+router.post("/ai/analyze/:sessionId", auth, aiController.analyzeSession);
+router.get("/ai/progress/:catalogId", auth, aiController.analyzeProgress);
 
 module.exports = router;

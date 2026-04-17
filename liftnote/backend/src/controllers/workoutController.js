@@ -1,4 +1,4 @@
-const { Workout, Exercise } = require("../models");
+const { Workout, WorkoutExercise, ExerciseLog } = require("../models");
 
 // GET /api/workouts
 const getAll = async (req, res) => {
@@ -18,7 +18,13 @@ const getOne = async (req, res) => {
     const workout = await Workout.findOne({
       _id: req.params.id,
       user_id: req.user._id,
-    }).populate("exercises");
+    }).populate({
+      path: "workout_exercises",
+      populate: {
+        path: "exercise_catalog_id",
+        select: "name muscle_group image_url",
+      },
+    });
 
     if (!workout)
       return res.status(404).json({ message: "Treino não encontrado" });
@@ -70,8 +76,16 @@ const remove = async (req, res) => {
     if (!workout)
       return res.status(404).json({ message: "Treino não encontrado" });
 
-    // Remove todos os exercícios vinculados
-    await Exercise.deleteMany({ workout_id: workout._id });
+    const workoutExercises = await WorkoutExercise.find({
+      workout_id: workout._id,
+    }).select("_id");
+
+    const ids = workoutExercises.map((we) => we._id);
+
+    if (ids.length) {
+      await ExerciseLog.deleteMany({ workout_exercise_id: { $in: ids } });
+      await WorkoutExercise.deleteMany({ workout_id: workout._id });
+    }
 
     res.json({ message: "Treino removido com sucesso" });
   } catch (err) {
