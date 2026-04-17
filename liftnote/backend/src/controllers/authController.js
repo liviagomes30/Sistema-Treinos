@@ -13,7 +13,7 @@ const register = async (req, res) => {
     const exists = await User.findOne({ email });
     if (exists)
       return res.status(409).json({ message: "E-mail já cadastrado" });
-
+    
     const user = await User.create({
       name,
       email,
@@ -24,6 +24,7 @@ const register = async (req, res) => {
 
     res.status(201).json({ token, user });
   } catch (err) {
+    console.error(err)
     res.status(400).json({ message: err.message });
   }
 };
@@ -44,6 +45,7 @@ const login = async (req, res) => {
     const token = generateToken(user._id);
     res.json({ token, user });
   } catch (err) {
+    console.error(err)
     res.status(500).json({ message: err.message });
   }
 };

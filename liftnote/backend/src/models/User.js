@@ -50,11 +50,13 @@ const userSchema = new mongoose.Schema(
 );
 
 // Hash da senha antes de salvar
-userSchema.pre("save", async function (next) {
-  if (!this.isModified("password_hash")) return next();
+// Hash da senha antes de salvar (Sem precisar do next)
+userSchema.pre("save", async function () {
+  // Se a senha não foi modificada, apenas encerra a função e o Mongoose segue o fluxo
+  if (!this.isModified("password_hash")) return;
+  
   const salt = await bcrypt.genSalt(10);
   this.password_hash = await bcrypt.hash(this.password_hash, salt);
-  next();
 });
 
 // Método para comparar senha no login
