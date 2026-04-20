@@ -1,95 +1,52 @@
-const { Workout, WorkoutExercise, ExerciseLog } = require("../models");
+const service = require("../services/workoutService");
 
 // GET /api/workouts
-const getAll = async (req, res) => {
+const getAll = async (req, res, next) => {
   try {
-    const workouts = await Workout.find({ user_id: req.user._id }).sort({
-      created_at: -1,
-    });
+    const workouts = await service.getAll(req.user._id);
     res.json(workouts);
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    next(err);
   }
 };
 
 // GET /api/workouts/:id
-const getOne = async (req, res) => {
+const getOne = async (req, res, next) => {
   try {
-    const workout = await Workout.findOne({
-      _id: req.params.id,
-      user_id: req.user._id,
-    }).populate({
-      path: "workout_exercises",
-      populate: {
-        path: "exercise_catalog_id",
-        select: "name muscle_group image_url",
-      },
-    });
-
-    if (!workout)
-      return res.status(404).json({ message: "Treino não encontrado" });
+    const workout = await service.getOne(req.params.id, req.user._id);
     res.json(workout);
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    next(err);
   }
 };
 
 // POST /api/workouts
-const create = async (req, res) => {
+const create = async (req, res, next) => {
   try {
-    const { name, description } = req.body;
-    const workout = await Workout.create({
-      user_id: req.user._id,
-      name,
-      description,
-    });
+    const workout = await service.create(req.user._id, req.body);
     res.status(201).json(workout);
   } catch (err) {
-    res.status(400).json({ message: err.message });
+    next(err);
   }
 };
 
 // PUT /api/workouts/:id
-const update = async (req, res) => {
+const update = async (req, res, next) => {
   try {
-    const { name, description } = req.body;
-    const workout = await Workout.findOneAndUpdate(
-      { _id: req.params.id, user_id: req.user._id },
-      { name, description },
-      { new: true, runValidators: true },
-    );
-    if (!workout)
-      return res.status(404).json({ message: "Treino não encontrado" });
+    const workout = await service.update(req.params.id, req.user._id, req.body);
     res.json(workout);
   } catch (err) {
-    res.status(400).json({ message: err.message });
+    next(err);
   }
 };
 
 // DELETE /api/workouts/:id
-const remove = async (req, res) => {
+const remove = async (req, res, next) => {
   try {
-    const workout = await Workout.findOneAndDelete({
-      _id: req.params.id,
-      user_id: req.user._id,
-    });
-    if (!workout)
-      return res.status(404).json({ message: "Treino não encontrado" });
-
-    const workoutExercises = await WorkoutExercise.find({
-      workout_id: workout._id,
-    }).select("_id");
-
-    const ids = workoutExercises.map((we) => we._id);
-
-    if (ids.length) {
-      await ExerciseLog.deleteMany({ workout_exercise_id: { $in: ids } });
-      await WorkoutExercise.deleteMany({ workout_id: workout._id });
-    }
-
-    res.json({ message: "Treino removido com sucesso" });
+    const result = await service.remove(req.params.id, req.user._id);
+    res.json(result);
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    next(err);
   }
 };
 

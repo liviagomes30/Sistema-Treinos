@@ -36,7 +36,7 @@
         </div>
 
         <div
-          v-for="(ex, ei) in activeSession.exercises"
+          v-for="(ex, ei) in activeSession?.exercises || []"
           :key="ex._id"
           :class="['exercise-card', { active: activeExerciseIdx === ei }]"
         >
@@ -171,7 +171,7 @@
               <span class="muted">Exercícios completos</span>
               <span style="font-family: var(--font-mono)"
                 >{{ completedExercises }}/{{
-                  activeSession.exercises.length
+                  activeSession?.exercises?.length || 0
                 }}</span
               >
             </div>
@@ -186,7 +186,7 @@
               <div
                 :style="{
                   width:
-                    (completedExercises / activeSession.exercises.length) *
+                    (completedExercises / (activeSession?.exercises?.length || 1)) *
                       100 +
                     '%',
                   height: '100%',
@@ -206,7 +206,7 @@
         <div class="card mt" style="margin-top: 12px">
           <h3>Anotações</h3>
           <textarea
-            v-model="activeSession.notes"
+            v-model="activeSessionNotes"
             rows="3"
             placeholder="Como está se sentindo? Notas do treino..."
             style="resize: none; font-size: 12px"
@@ -219,40 +219,146 @@
   <!-- ─── HISTORY ─── -->
 </template>
 
-<script setup>
-import { ref, computed } from "vue";
+<script setup lang="ts">
+import { ref, computed, onMounted, onUnmounted } from "vue";
 import { useSessionStore } from "../store/sessionStore";
 import { useRouter } from "vue-router";
+import type { Session, Exercise } from "../types";
 
 const sessionStore = useSessionStore();
 const router = useRouter();
 
 const activeSession = computed(() => sessionStore.activeSession);
 const timerDisplay = ref("00:00");
-const timerRunning = ref(false);
+const timerRunning = ref(true);
 const activeExerciseIdx = ref(0);
-const sessionVolume = ref(0);
-const completedExercises = ref(0);
+const secondsElapsed = ref(0);
+let timerInterval: any = null;
 
-// Stub functions
-function toggleTimer() {
-  timerRunning.value = !timerRunning.value;
+const activeSessionNotes = computed({
+  get: () => activeSession.value?.notes || '',
+  set: (val) => {
+    if (activeSession.value) activeSession.value.notes = val;
+  }
+});
+
+onMounted(() => {
+  if (!activeSession.value) {
+    router.push("/workouts");
+    return;
+  }
+  startTimer();
+});
+
+onUnmounted(() => {
+  stopTimer();
+});
+
+function startTimer() {
+  timerRunning.value = true;
+  timerInterval = setInterval(() => {
+    secondsElapsed.value++;
+    const mins = Math.floor(secondsElapsed.value / 60);
+    const secs = secondsElapsed.value % 60;
+    timerDisplay.value = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  }, 1000);
 }
+
+function stopTimer() {
+  timerRunning.value = false;
+  if (timerInterval) clearInterval(timerInterval);
+}
+
+function toggleTimer() {
+  if (timerRunning.value) stopTimer();
+  else startTimer();
+}
+
 function resetTimer() {
+  secondsElapsed.value = 0;
   timerDisplay.value = "00:00";
 }
-function finishSession() {
-  sessionStore.finishSession();
-  router.push("/history");
+
+async function finishSession() {
+  if (confirm("Deseja finalizar este treino?")) {
+    await sessionStore.finishSession();
+    router.push("/history");
+  }
 }
-function cancelSession() {
-  sessionStore.cancelSession();
-  router.push("/workouts");
+
+async function cancelSession() {
+  if (confirm("Tem certeza que deseja cancelar este treino? Os dados não serão salvos.")) {
+    await sessionStore.cancelSession();
+    router.push("/workouts");
+  }
 }
-function getSetStatus(s) {
-  return "pendente";
+
+const completedExercises = computed(() => {
+  if (!activeSession.value?.exercises) return 0;
+  return activeSession.value.exercises.filter(ex => exerciseComplete(ex)).length;
+});
+
+const sessionVolume = computed(() => {
+  if (!activeSession.value?.exercises) return 0;
+  return activeSession.value.exercises.reduce((acc, ex) => {
+    const exVol = ex.logs.reduce((exAcc: number, log: any) => exAcc + (log.weight_used_kg * log.reps_done), 0);
+    return acc + exVol;
+  }, 0);
+});
+
+function exerciseComplete(exercise: any) {
+  if (!exercise.logs || exercise.logs.length === 0) return false;
+  return exercise.logs.length >= exercise.series;
 }
-function exerciseComplete(e) {
-  return false;
+
+function getExSets(exercise: any): any[] {
+  const sets = [];
+  const logs = exercise.logs || [];
+  for (let i = 0; i < exercise.series; i++) {
+    const log = logs.find((l: any) => l.set_number === i + 1);
+    sets.push({
+      set_number: i + 1,
+      weightLogged: log?.weight_used_kg || exercise.weight_kg || 0,
+      repsLogged: log?.reps_done || exercise.reps || 0,
+      targetReps: exercise.reps,
+      targetWeight: exercise.weight_kg,
+      done: !!log
+    });
+  }
+  return sets;
 }
+
+async function logSet(exerciseId: string, setIndex: number, field: string, value: any) {
+  // Atualização local para feedback instantâneo (opcional, aqui simplificado)
+  const exercise = activeSession.value?.exercises.find((ex: any) => ex.exercise_id === exerciseId);
+  if (!exercise) return;
+  
+  // No mundo real, você pode querer debouncing ou salvar apenas no 'markSetDone'
+}
+
+async function markSetDone(exerciseId: string, setIndex: number) {
+  const exercise = activeSession.value?.exercises.find((ex: any) => ex.exercise_id === exerciseId);
+  if (!exercise) return;
+
+  const setNum = setIndex + 1;
+  const existingLogIdx = exercise.logs.findIndex((l: any) => l.set_number === setNum);
+  
+  const logData = {
+    set_number: setNum,
+    reps_done: exercise.reps || 10, // Idealmente pegar do input
+    weight_used_kg: exercise.weight_kg || 0
+  };
+
+  try {
+    await sessionStore.logSet(exerciseId, logData);
+    if (existingLogIdx > -1) {
+      exercise.logs[existingLogIdx] = logData;
+    } else {
+      exercise.logs.push(logData);
+    }
+  } catch (err) {
+    console.error(err);
+  }
+}
+
 </script>

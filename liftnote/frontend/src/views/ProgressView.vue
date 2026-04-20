@@ -107,12 +107,12 @@
           <!-- ─── SETTINGS ─── -->
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed } from 'vue';
 import { useAppStore } from '../store/appStore';
 const appStore = useAppStore();
 const progressFilter = ref('volume');
 const chartData = computed(() => []);
 const maxChartVal = ref(100);
-function formatDuration(d) { return d; }
+function formatDuration(durationSeconds: number) { return durationSeconds; }
 </script>

@@ -28,22 +28,25 @@
   </BaseModal>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, watch } from "vue";
 import BaseModal from "../ui/BaseModal.vue";
 
-const props = defineProps({
-  isOpen: Boolean,
-  isEdit: Boolean,
-  initialData: {
-    type: Object,
-    default: () => ({ name: "", description: "" }),
-  },
+const props = withDefaults(defineProps<{
+  isOpen: boolean;
+  isEdit?: boolean;
+  initialData?: { name: string; description: string };
+}>(), {
+  isEdit: false,
+  initialData: () => ({ name: "", description: "" })
 });
 
-const emit = defineEmits(["update:isOpen", "save"]);
+const emit = defineEmits<{
+  (e: "update:isOpen", value: boolean): void;
+  (e: "save", value: { name: string; description: string }): void;
+}>();
 
-const form = ref({ name: "", description: "" });
+const form = ref({ ...props.initialData });
 
 watch(
   () => props.isOpen,

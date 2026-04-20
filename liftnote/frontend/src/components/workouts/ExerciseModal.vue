@@ -95,31 +95,45 @@
   </BaseModal>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, watch } from "vue";
 import BaseModal from "../ui/BaseModal.vue";
 
-const props = defineProps({
-  isOpen: Boolean,
-  initialData: {
-    type: Object,
-    default: () => ({
-      name: "",
-      muscle_group: "chest",
-      set_type: "linear",
-      series: 3,
-      reps: 10,
-      weight_kg: 0,
-      rest_seconds: 90,
-      no_rest: false,
-      notes: "",
-    }),
-  },
+interface ExerciseForm {
+  name: string;
+  muscle_group: string;
+  set_type: string;
+  series: number;
+  reps: number;
+  weight_kg: number;
+  rest_seconds: number;
+  no_rest?: boolean;
+  notes?: string;
+}
+
+const props = withDefaults(defineProps<{
+  isOpen: boolean;
+  initialData?: ExerciseForm;
+}>(), {
+  initialData: () => ({
+    name: "",
+    muscle_group: "chest",
+    set_type: "linear",
+    series: 3,
+    reps: 10,
+    weight_kg: 0,
+    rest_seconds: 90,
+    no_rest: false,
+    notes: "",
+  })
 });
 
-const emit = defineEmits(["update:isOpen", "save"]);
+const emit = defineEmits<{
+  (e: "update:isOpen", value: boolean): void;
+  (e: "save", value: ExerciseForm): void;
+}>();
 
-const form = ref({ ...props.initialData });
+const form = ref<ExerciseForm>({ ...props.initialData });
 
 watch(
   () => props.isOpen,

@@ -1,66 +1,42 @@
+const logger = require("../config/logger");
+
+// Handler de erros global
 const errorHandler = (err, req, res, next) => {
-  let status = err.status || err.statusCode || 500;
-  let message = err.message || "Erro interno do servidor";
-  let errors = null;
+  logger.error(err);
 
-  // Erro de validação do Mongoose (campos inválidos)
-  if (err.name === "ValidationError") {
-    status = 400;
-    message = "Dados inválidos";
-    errors = Object.values(err.errors).map((e) => ({
-      field: e.path,
-      message: e.message,
-    }));
-  }
-
-  // Documento não encontrado pelo Mongoose
-  if (err.name === "DocumentNotFoundError") {
-    status = 404;
-    message = "Recurso não encontrado";
-  }
-
-  // ID com formato inválido (ObjectId malformado)
-  if (err.name === "CastError" && err.kind === "ObjectId") {
-    status = 400;
-    message = `ID inválido: ${err.value}`;
-  }
-
-  // Violação de campo único (ex: e-mail duplicado)
+  // Mongoose Duplicated Key Error
   if (err.code === 11000) {
-    status = 409;
     const field = Object.keys(err.keyValue)[0];
-    message = `O valor do campo "${field}" já está em uso`;
+    return res.status(409).json({ message: `O campo ${field} já está em uso.` });
   }
 
-  // Token JWT inválido
+  // Mongoose Validation Error
+  if (err.name === "ValidationError") {
+    const messages = Object.values(err.errors).map((val) => val.message);
+    return res.status(400).json({ message: "Erro de validação", details: messages });
+  }
+
+  // JWT Errors
   if (err.name === "JsonWebTokenError") {
-    status = 401;
-    message = "Token inválido";
+    return res.status(401).json({ message: "Token inválido" });
   }
-
-  // Token JWT expirado
   if (err.name === "TokenExpiredError") {
-    status = 401;
-    message = "Token expirado. Faça login novamente";
+    return res.status(401).json({ message: "Token expirado" });
   }
 
-  // Log no servidor (apenas erros inesperados)
-  if (status === 500) {
-    console.error(
-      `[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`,
-    );
-    console.error(err.stack);
+  // Erro de Negócio Customizado
+  if (err.isOperational) {
+    return res.status(err.statusCode || 400).json({ message: err.message });
   }
 
-  const response = { message };
-  if (errors) response.errors = errors;
+  // Erro padrão (fallback)
+  const statusCode = err.statusCode || 500;
+  const message = err.message || "Erro interno no servidor";
 
-  // Em desenvolvimento, expõe o stack trace
-  if (process.env.NODE_ENV === "development" && status === 500) {
-    response.stack = err.stack;
-  }
-
-  res.status(status).json(response);
+  res.status(statusCode).json({
+    message,
+    ...(process.env.NODE_ENV !== "production" && { stack: err.stack }),
+  });
 };
 
 module.exports = errorHandler;

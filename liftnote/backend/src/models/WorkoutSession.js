@@ -68,13 +68,12 @@ workoutSessionSchema.virtual("logs", {
 });
 
 // Ao finalizar, calcula a duração automaticamente
-workoutSessionSchema.pre("save", function (next) {
+workoutSessionSchema.pre("save", async function () {
   if (this.isModified("finished_at") && this.finished_at && this.started_at) {
     this.duration_seconds = Math.round(
       (this.finished_at - this.started_at) / 1000,
     );
   }
-  next();
 });
 
 // Índices para as queries mais comuns

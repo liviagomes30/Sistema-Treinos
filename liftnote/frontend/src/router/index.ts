@@ -23,6 +23,12 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: "/workouts/:id",
+      name: "workout-details",
+      component: () => import("../views/WorkoutDetailsView.vue"),
+      meta: { requiresAuth: true },
+    },
+    {
       path: "/history",
       name: "history",
       component: () => import("../views/HistoryView.vue"),
@@ -50,14 +56,12 @@ const router = createRouter({
 });
 
 // Navigation guard
-router.beforeEach((to, from, next) => {
+router.beforeEach((to) => {
   const authStore = useAuthStore();
   if (to.meta.requiresAuth && !authStore.currentUser) {
-    next("/auth");
+    return "/auth";
   } else if (to.path === "/auth" && authStore.currentUser) {
-    next("/");
-  } else {
-    next();
+    return "/";
   }
 });
 

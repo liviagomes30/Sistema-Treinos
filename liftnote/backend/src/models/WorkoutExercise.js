@@ -93,21 +93,17 @@ const workoutExerciseSchema = new mongoose.Schema(
   },
 );
 
-workoutExerciseSchema.pre("save", function (next) {
+workoutExerciseSchema.pre("save", async function () {
   if (
     this.set_type === "pyramid" &&
     (!this.pyramid_sets || this.pyramid_sets.length === 0)
   ) {
-    return next(
-      new Error("Série pirâmide exige ao menos uma configuração de série"),
-    );
+    throw new Error("Série pirâmide exige ao menos uma configuração de série");
   }
 
   if (this.set_type === "linear" && (!this.series || !this.reps)) {
-    return next(new Error("Série linear exige número de séries e repetições"));
+    throw new Error("Série linear exige número de séries e repetições");
   }
-
-  next();
 });
 
 workoutExerciseSchema.virtual("display_name").get(function () {

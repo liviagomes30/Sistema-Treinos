@@ -1,129 +1,52 @@
-const { WorkoutSession, ExerciseLog, Workout } = require("../models");
+const service = require("../services/sessionService");
 
 // GET /api/sessions  — histórico de sessões do usuário
-const getAll = async (req, res) => {
+const getAll = async (req, res, next) => {
   try {
-    const { workout_id, status, limit = 20, page = 1 } = req.query;
-    const filter = { user_id: req.user._id };
-    if (workout_id) filter.workout_id = workout_id;
-    if (status) filter.status = status;
-
-    const sessions = await WorkoutSession.find(filter)
-      .populate("workout_id", "name description")
-      .sort({ started_at: -1 })
-      .skip((page - 1) * limit)
-      .limit(Number(limit));
-
-    const total = await WorkoutSession.countDocuments(filter);
-
-    res.json({
-      data: sessions,
-      total,
-      page: Number(page),
-      limit: Number(limit),
-    });
+    const result = await service.getAll(req.user._id, req.query);
+    res.json(result);
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    next(err);
   }
 };
 
 // GET /api/sessions/:id
-const getOne = async (req, res) => {
+const getOne = async (req, res, next) => {
   try {
-    const session = await WorkoutSession.findOne({
-      _id: req.params.id,
-      user_id: req.user._id,
-    })
-      .populate("workout_id", "name")
-      .populate({
-        path: "logs",
-        populate: {
-          path: "workout_exercise_id",
-          select: "custom_name set_type order exercise_catalog_id",
-          populate: {
-            path: "exercise_catalog_id",
-            select: "name muscle_group",
-          },
-        },
-      });
-
-    if (!session)
-      return res.status(404).json({ message: "Sessão não encontrada" });
+    const session = await service.getOne(req.params.id, req.user._id);
     res.json(session);
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    next(err);
   }
 };
 
 // POST /api/sessions  — inicia uma sessão
-const create = async (req, res) => {
+const create = async (req, res, next) => {
   try {
-    const { workout_id } = req.body;
-
-    const workout = await Workout.findOne({
-      _id: workout_id,
-      user_id: req.user._id,
-    });
-    if (!workout)
-      return res.status(404).json({ message: "Treino não encontrado" });
-
-    await WorkoutSession.updateMany(
-      { user_id: req.user._id, status: "in_progress" },
-      { status: "cancelled" },
-    );
-
-    const session = await WorkoutSession.create({
-      user_id: req.user._id,
-      workout_id,
-      started_at: new Date(),
-    });
-
+    const session = await service.create(req.user._id, req.body);
     res.status(201).json(session);
   } catch (err) {
-    res.status(400).json({ message: err.message });
+    next(err);
   }
 };
 
 // PUT /api/sessions/:id  — atualiza (ex: finaliza a sessão)
-const update = async (req, res) => {
+const update = async (req, res, next) => {
   try {
-    const { status, ai_summary } = req.body;
-
-    const session = await WorkoutSession.findOne({
-      _id: req.params.id,
-      user_id: req.user._id,
-    });
-    if (!session)
-      return res.status(404).json({ message: "Sessão não encontrada" });
-
-    if (status) session.status = status;
-    if (ai_summary) session.ai_summary = ai_summary;
-
-    if (status === "completed" && !session.finished_at) {
-      session.finished_at = new Date();
-    }
-
-    await session.save();
+    const session = await service.update(req.params.id, req.user._id, req.body);
     res.json(session);
   } catch (err) {
-    res.status(400).json({ message: err.message });
+    next(err);
   }
 };
 
 // DELETE /api/sessions/:id
-const remove = async (req, res) => {
+const remove = async (req, res, next) => {
   try {
-    const session = await WorkoutSession.findOneAndDelete({
-      _id: req.params.id,
-      user_id: req.user._id,
-    });
-    if (!session)
-      return res.status(404).json({ message: "Sessão não encontrada" });
-
-    await ExerciseLog.deleteMany({ session_id: session._id });
-    res.json({ message: "Sessão removida com sucesso" });
+    const result = await service.remove(req.params.id, req.user._id);
+    res.json(result);
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    next(err);
   }
 };
 

@@ -10,19 +10,18 @@
   </div>
 </template>
 
-<script setup>
-defineProps({
-  modelValue: {
-    type: Boolean,
-    default: false,
-  },
-  title: {
-    type: String,
-    required: true,
-  },
+<script setup lang="ts">
+withDefaults(defineProps<{
+  modelValue?: boolean;
+  title: string;
+}>(), {
+  modelValue: false
 });
 
-const emit = defineEmits(["update:modelValue", "close"]);
+const emit = defineEmits<{
+  (e: "update:modelValue", value: boolean): void;
+  (e: "close"): void;
+}>();
 
 function close() {
   emit("update:modelValue", false);

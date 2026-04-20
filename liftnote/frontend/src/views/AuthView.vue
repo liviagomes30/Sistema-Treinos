@@ -127,7 +127,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref } from "vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "../store/authStore";
@@ -142,7 +142,7 @@ const authForm = ref({ name: "", email: "", password: "", age: null });
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-function doLogin() {
+async function doLogin() {
   authError.value = "";
   if (!authForm.value.email || !authForm.value.password) {
     authError.value = "Preencha todos os campos";
@@ -152,17 +152,19 @@ function doLogin() {
     authError.value = "E-mail inválido";
     return;
   }
-  // Mock login success
-  authStore.login({
-    _id: "u1",
-    name: "João",
-    email: authForm.value.email,
-    age: 28,
-  });
-  router.push("/");
+  
+  try {
+    await authStore.login({
+      email: authForm.value.email,
+      password: authForm.value.password
+    });
+    router.push("/");
+  } catch (err: any) {
+    authError.value = authStore.error || "Erro ao entrar";
+  }
 }
 
-function doRegister() {
+async function doRegister() {
   authError.value = "";
   if (
     !authForm.value.name ||
@@ -176,14 +178,17 @@ function doRegister() {
     authError.value = "A senha deve ter no mínimo 6 caracteres";
     return;
   }
-  // Mock register success
-  authStore.login({
-    _id: "u2",
-    name: authForm.value.name,
-    email: authForm.value.email,
-    age: authForm.value.age,
-  });
-  router.push("/");
+
+  try {
+    await authStore.register({
+      name: authForm.value.name,
+      email: authForm.value.email,
+      password: authForm.value.password
+    });
+    router.push("/");
+  } catch (err: any) {
+    authError.value = authStore.error || "Erro ao criar conta";
+  }
 }
 
 function doReset() {

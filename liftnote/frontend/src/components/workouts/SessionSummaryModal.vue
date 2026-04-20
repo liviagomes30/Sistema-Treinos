@@ -50,19 +50,22 @@
   </BaseModal>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import BaseModal from "../ui/BaseModal.vue";
+import type { Session } from "../../types";
 
-defineProps({
-  isOpen: Boolean,
-  session: Object,
-  aiLoading: {
-    type: Boolean,
-    default: false,
-  },
+withDefaults(defineProps<{
+  isOpen: boolean;
+  session?: Session | any;
+  aiLoading?: boolean;
+}>(), {
+  aiLoading: false
 });
 
-const emit = defineEmits(["update:isOpen", "close"]);
+const emit = defineEmits<{
+  (e: "update:isOpen", value: boolean): void;
+  (e: "close"): void;
+}>();
 
 function close() {
   emit("update:isOpen", false);

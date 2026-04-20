@@ -34,13 +34,13 @@
         "
       >
         <div>
-          <h3>{{ w.title }}</h3>
+          <h3>{{ w.name }}</h3>
           <p style="font-size: 13px; color: var(--text2)">
             {{ w.description || "Sem descrição" }}
           </p>
         </div>
         <div style="display: flex; gap: 8px">
-          <button class="btn btn-ghost btn-sm">Ver Exercícios</button>
+          <button class="btn btn-ghost btn-sm" @click="router.push(`/workouts/${w._id}`)">Ver Exercícios</button>
           <button class="btn btn-accent btn-sm" @click="handleStartSession(w)">
             ▶ Iniciar
           </button>
@@ -57,31 +57,35 @@
   </div>
 </template>
 
-<script setup>
-import { ref } from "vue";
+<script setup lang="ts">
+import { ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { useAppStore } from "../store/appStore";
 import { useSessionStore } from "../store/sessionStore";
 import WorkoutModal from "../components/workouts/WorkoutModal.vue";
+import type { Workout } from "../types";
 
 const appStore = useAppStore();
 const sessionStore = useSessionStore();
 const router = useRouter();
 const showWorkoutModal = ref(false);
 
-function handleStartSession(workout) {
-  sessionStore.startSession(workout);
-  router.push("/session");
+onMounted(() => {
+  appStore.fetchWorkouts();
+});
+
+async function handleStartSession(workout: Workout) {
+  await sessionStore.startSession(workout);
+  if (sessionStore.activeSession) {
+    router.push("/session");
+  }
 }
 
-function handleSaveWorkout(data) {
-  // Add a fake ID for mockup purposes
-  const newWorkout = {
-    _id: "w" + Date.now(),
-    title: data.name,
+async function handleSaveWorkout(data: { name: string; description: string }) {
+  await appStore.addWorkout({
+    name: data.name,
     description: data.description,
-    color: "accent",
-  };
-  appStore.addWorkout(newWorkout);
+  });
+  showWorkoutModal.value = false;
 }
 </script>

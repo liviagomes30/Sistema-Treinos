@@ -25,17 +25,17 @@
               <div class="empty-text">Nenhuma sessão encontrada</div>
             </div>
             <div
-              v-for="s in filteredHistory"
-              :key="s._id"
+              v-for="session in filteredHistory"
+              :key="session._id"
               class="history-item"
-              @click="viewSession(s)"
+              @click="viewSession(session)"
             >
               <div class="history-date">
                 <div class="history-date-day">
-                  {{ new Date(s.started_at).getDate() }}
+                  {{ new Date(session.started_at).getDate() }}
                 </div>
                 <div class="history-date-month">
-                  {{ months[new Date(s.started_at).getMonth()] }}
+                  {{ months[new Date(session.started_at).getMonth()] }}
                 </div>
               </div>
               <div style="flex: 1">
@@ -48,30 +48,30 @@
                   "
                 >
                   <span style="font-weight: 500">{{
-                    getWorkoutName(s.workout_id)
+                    getWorkoutName(session.workout_id)
                   }}</span>
                   <span
                     :class="[
                       'tag',
-                      s.status === 'completed'
+                      session.status === 'completed'
                         ? 'tag-accent'
-                        : s.status === 'cancelled'
+                        : session.status === 'cancelled'
                           ? 'tag-red'
                           : 'tag-blue',
                     ]"
-                    >{{ statusLabel(s.status) }}</span
+                    >{{ statusLabel(session.status) }}</span
                   >
                 </div>
                 <div style="font-size: 11px; color: var(--text2)">
-                  {{ formatDate(s.started_at) }} · Duração:
+                  {{ formatDate(session.started_at) }} · Duração:
                   {{
-                    s.duration_formatted ||
-                    formatDuration(s.duration_seconds) ||
+                    session.duration_formatted ||
+                    formatDuration(session.duration_seconds) ||
                     "—"
                   }}
                 </div>
                 <div
-                  v-if="s.ai_summary"
+                  v-if="session.ai_summary"
                   style="
                     font-size: 11px;
                     color: var(--text3);
@@ -79,7 +79,7 @@
                     font-style: italic;
                   "
                 >
-                  🤖 {{ s.ai_summary.substring(0, 80) }}...
+                  🤖 {{ session.ai_summary.substring(0, 80) }}...
                 </div>
               </div>
               <div
@@ -88,7 +88,7 @@
               >
                 <button
                   class="btn btn-danger btn-sm"
-                  @click="deleteSession(s._id)"
+                  @click="deleteSession(session._id)"
                 >
                   ✕
                 </button>
@@ -99,17 +99,82 @@
           <!-- ─── PROGRESS ─── -->
 </template>
 
-<script setup>
-import { ref, computed } from 'vue';
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue';
 import { useAppStore } from '../store/appStore';
-import { useSessionStore } from '../store/sessionStore';
+import { sessionService } from '../services/sessionService';
+import type { Session } from '../types';
+
 const appStore = useAppStore();
 const historySearch = ref('');
 const historyFilter = ref('');
-const filteredHistory = computed(() => []);
-function viewSession(s) {}
-function formatDate(d) { return d; }
-function getWorkoutName(id) { return appStore.getWorkoutName(id); }
-function statusLabel(s) { return s; }
-function formatDuration(d) { return d; }
+
+const months = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
+
+onMounted(() => {
+  appStore.fetchSessions();
+  appStore.fetchWorkouts();
+});
+
+const filteredHistory = computed<Session[]>(() => {
+  const sessionsArray = Array.isArray(appStore.sessions) ? appStore.sessions : [];
+  let sessions = [...sessionsArray];
+  
+  if (historyFilter.value) {
+    sessions = sessions.filter(s => s.status === historyFilter.value);
+  }
+  
+  if (historySearch.value) {
+    const q = historySearch.value.toLowerCase();
+    sessions = sessions.filter(s => {
+      const workoutName = getWorkoutName(s.workout_id).toLowerCase();
+      return workoutName.includes(q);
+    });
+  }
+
+  // Sort by date descending
+  return sessions.sort((a, b) => new Date(b.started_at).getTime() - new Date(a.started_at).getTime());
+});
+
+async function deleteSession(id: string) {
+  if (confirm("Tem certeza que deseja excluir esta sessão?")) {
+    try {
+      await sessionService.delete(id);
+      await appStore.fetchSessions();
+    } catch (err) {
+      console.error(err);
+    }
+  }
+}
+
+function viewSession(session: Session) {
+  // Poderia abrir um modal ou navegar para detalhes
+  console.log("Viewing session", session);
+}
+
+function formatDate(dateStr: string) { 
+  const d = new Date(dateStr);
+  return d.toLocaleString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+}
+
+function getWorkoutName(workoutId: any) { 
+  if (typeof workoutId === 'object' && workoutId?.name) return workoutId.name;
+  return appStore.getWorkoutName(workoutId); 
+}
+
+function statusLabel(status: string) { 
+  const labels: Record<string, string> = {
+    completed: 'Completo',
+    in_progress: 'Em andamento',
+    cancelled: 'Cancelado'
+  };
+  return labels[status] || status;
+}
+
+function formatDuration(durationSeconds?: number) { 
+  if (!durationSeconds) return null;
+  const mins = Math.floor(durationSeconds / 60);
+  const secs = durationSeconds % 60;
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
 </script>

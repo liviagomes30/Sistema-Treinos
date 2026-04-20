@@ -57,20 +57,23 @@
   </BaseModal>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed } from "vue";
 import BaseModal from "../ui/BaseModal.vue";
+import type { Session } from "../../types";
 
-const props = defineProps({
-  isOpen: Boolean,
-  session: Object,
-  workoutName: {
-    type: String,
-    default: "Treino",
-  },
+const props = withDefaults(defineProps<{
+  isOpen: boolean;
+  session?: Session | any;
+  workoutName?: string;
+}>(), {
+  workoutName: "Treino"
 });
 
-const emit = defineEmits(["update:isOpen", "generateAiSummary"]);
+const emit = defineEmits<{
+  (e: "update:isOpen", value: boolean): void;
+  (e: "generateAiSummary", value: any): void;
+}>();
 
 const formattedDate = computed(() => {
   if (!props.session?.started_at) return "";
