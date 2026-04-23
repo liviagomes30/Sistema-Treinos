@@ -8,6 +8,9 @@ const routes = require("./routes");
 const errorHandler = require("./middlewares/errorHandler");
 const logger = require("./config/logger");
 
+const swaggerUi = require("swagger-ui-express");
+const swaggerSpec = require("./config/swagger");
+
 const app = express();
 
 // ─── Middlewares globais ───────────────────────────────────────
@@ -22,10 +25,23 @@ app.use((req, res, next) => {
   next();
 });
 
+// ─── Swagger Documentation ──────────────────────────────────────
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
 // ─── Rotas ────────────────────────────────────────────────────
 app.use("/api", routes);
 
 // ─── Health check ─────────────────────────────────────────────
+/**
+ * @swagger
+ * /health:
+ *   get:
+ *     summary: Verifica o status da API
+ *     description: Retorna um objeto indicando que a API está rodando
+ *     responses:
+ *       200:
+ *         description: Sucesso
+ */
 app.get("/health", (req, res) => res.json({ status: "ok" }));
 
 // ─── Handler de erros global (deve ser o último middleware) ───
