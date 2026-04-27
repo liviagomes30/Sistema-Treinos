@@ -27,8 +27,8 @@ export const useSessionStore = defineStore('session', () => {
         workoutName: workout.name,
         exercises: workoutExercises.map(we => ({
           exercise_id: we._id, // we._id aqui é o WorkoutExercise ID no backend
-          name: we.name,
-          muscle_group: we.muscle_group,
+          name: (we as any).exercise_catalog_id?.name || (we as any).custom_name || we.name || 'Exercício',
+          muscle_group: (we as any).exercise_catalog_id?.muscle_group || we.muscle_group,
           series: we.series,
           reps: we.reps,
           set_type: we.set_type,

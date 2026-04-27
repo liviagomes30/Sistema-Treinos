@@ -6,6 +6,7 @@ const getAll = async (req, res, next) => {
     const items = await service.getAll(req.user._id, req.query);
     res.json(items);
   } catch (err) {
+    console.error('[exerciseCatalog] getAll error:', err);
     next(err);
   }
 };
