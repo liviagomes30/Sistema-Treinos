@@ -52,6 +52,14 @@ const router = createRouter({
       component: () => import("../views/SettingsView.vue"),
       meta: { requiresAuth: true },
     },
+    {
+      path: "/login",
+      redirect: "/auth"
+    },
+    {
+      path: "/:pathMatch(.*)*",
+      redirect: "/"
+    }
   ],
 });
 

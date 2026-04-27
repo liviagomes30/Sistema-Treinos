@@ -1,17 +1,28 @@
 <template>
-  <div class="workout-details">
-    <div class="header mb">
-      <button class="btn btn-ghost btn-sm mb" @click="router.back()">← Voltar</button>
-      <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-        <div>
-          <h2 style="margin: 0">{{ workout?.name }}</h2>
-          <p class="muted">{{ workout?.description || 'Sem descrição' }}</p>
-        </div>
-        <div style="display: flex; gap: 8px">
-          <button class="btn btn-ghost" @click="showAddExercise = true">+ Adicionar Exercício</button>
-          <button class="btn btn-accent" @click="startSession">▶ Iniciar Treino</button>
-        </div>
+  <div class="summary-page">
+    <div class="topbar-summary">
+      <div class="icon-btn" @click="router.back()">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
       </div>
+      <div class="page-title-small">Resumo</div>
+      <div class="icon-btn">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="19" r="1"></circle></svg>
+      </div>
+    </div>
+
+    <h1 class="summary-title">{{ workout?.name || 'Resumo do Treino' }}</h1>
+    <p class="muted mb" style="margin-top: -16px;">{{ workout?.description }}</p>
+
+    <div class="progress-section mb">
+      <div class="progress-label">Progresso geral:</div>
+      <div class="progress-bar-container">
+        <div class="progress-bar-fill" style="width: 100%;"></div>
+      </div>
+    </div>
+
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+      <h2 style="font-size: 16px; font-weight: 600; margin: 0;">Exercícios</h2>
+      <button class="btn btn-ghost btn-sm" style="color: var(--accent)" @click="showAddExercise = true">+ Adicionar</button>
     </div>
 
     <div v-if="loading" class="empty-state">Carregando exercícios...</div>
@@ -19,28 +30,33 @@
     <div v-else-if="exercises.length === 0" class="empty-state">
       <div class="empty-icon">⚖</div>
       <p>Este treino ainda não tem exercícios.<br>Adicione alguns para começar!</p>
-      <button class="btn btn-accent mt" @click="showAddExercise = true">Adicionar primeiro exercício</button>
     </div>
 
-    <div v-else class="exercise-list">
-      <div v-for="(ex, index) in exercises" :key="ex._id" class="card mb">
-        <div style="display: flex; justify-content: space-between; align-items: center">
-          <div style="display: flex; align-items: center; gap: 12px">
-            <div class="tag">{{ index + 1 }}</div>
-            <div>
-              <div style="font-weight: 600">{{ ex.name }}</div>
-              <div style="font-size: 12px; color: var(--text2)">{{ ex.muscle_group }}</div>
-            </div>
-          </div>
-          <div style="display: flex; align-items: center; gap: 16px">
-            <div style="text-align: right">
-              <div style="font-size: 14px; font-weight: 500">{{ ex.series }} x {{ ex.reps }}</div>
-              <div style="font-size: 11px; color: var(--text3)">{{ ex.weight_kg }}kg • {{ ex.rest_seconds }}s rest</div>
-            </div>
-            <button class="btn btn-danger btn-sm" @click="removeExercise(ex._id)">✕</button>
-          </div>
+    <div v-else class="exercises-summary-list">
+      <div 
+        v-for="(ex, index) in exercises" 
+        :key="ex._id"
+        class="exercise-item-card"
+      >
+        <div class="ex-image">
+          <span style="font-weight: 800; font-size: 18px; color: var(--text3)">{{ index + 1 }}</span>
+        </div>
+        <div class="ex-info">
+          <div class="ex-name">{{ ex.exercise_catalog_id?.name || ex.custom_name || ex.name || 'Exercício' }}</div>
+          <div class="ex-meta">{{ ex.series }} sets x {{ ex.reps }} reps • {{ ex.weight_kg }}kg</div>
+          <div class="ex-meta" style="font-size: 10px;">{{ formatMuscleGroup(ex.exercise_catalog_id?.muscle_group || ex.muscle_group) }}</div>
+        </div>
+        <div class="ex-actions">
+          <button class="btn btn-ghost btn-sm" style="padding: 4px; border-radius: 8px; color: var(--text2);" @click="editExercise(ex)">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+          </button>
+          <button class="btn btn-danger btn-sm" style="padding: 4px; border-radius: 8px; margin-left: 4px;" @click="removeExercise(ex._id)">✕</button>
         </div>
       </div>
+    </div>
+
+    <div class="bottom-action">
+      <button class="btn btn-accent btn-large" @click="startSession">Iniciar Treino</button>
     </div>
 
     <!-- Modal Adicionar Exercício -->
@@ -263,6 +279,10 @@ async function handleAddExercise() {
   }
 }
 
+function editExercise(ex: any) {
+  alert("A edição de exercício será implementada em breve.");
+}
+
 async function removeExercise(id: string) {
   if (!confirm('Remover este exercício do treino?')) return;
   try {
@@ -282,6 +302,122 @@ async function startSession() {
 </script>
 
 <style scoped>
+.summary-page {
+  padding: 20px;
+  padding-bottom: 100px;
+}
+.topbar-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+.icon-btn {
+  cursor: pointer;
+  color: var(--text);
+}
+.page-title-small {
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.summary-title {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.progress-section {
+  margin-bottom: 32px;
+}
+.progress-label {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.progress-bar-container {
+  height: 12px;
+  background: var(--bg4);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.progress-bar-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 6px;
+}
+
+.exercises-summary-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.exercise-item-card {
+  display: flex;
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 12px;
+}
+.ex-image {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--accent-dim);
+  border: 1px solid rgba(187, 242, 70, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 16px;
+  color: var(--accent);
+}
+.ex-info {
+  flex: 1;
+}
+.ex-name {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.ex-meta {
+  font-size: 12px;
+  color: var(--text2);
+}
+.ex-actions {
+  display: flex;
+  align-items: center;
+  margin-left: 12px;
+}
+.check-circle-green {
+  width: 28px;
+  height: 28px;
+  border-radius: 14px;
+  background: var(--accent-dim);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bottom-action {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 16px 20px 24px;
+  background: linear-gradient(0deg, var(--bg) 80%, rgba(25, 33, 38, 0));
+  display: flex;
+  justify-content: center;
+  z-index: 100;
+}
+.bottom-action .btn-large {
+  max-width: 440px;
+  width: 100%;
+}
+
+/* Modal styles (kept from original) */
 .grid-2 {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -292,16 +428,12 @@ async function startSession() {
   justify-content: flex-end;
   gap: 8px;
 }
-.header {
-  border-bottom: 1px solid var(--border);
-  padding-bottom: 16px;
-}
 .exercise-select-list {
   max-height: 200px;
   overflow-y: auto;
   border: 1px solid var(--border);
   border-radius: 6px;
-  background: var(--bg2);
+  background: var(--bg);
 }
 .exercise-option {
   padding: 10px 12px;
@@ -321,7 +453,7 @@ async function startSession() {
 }
 .exercise-option.active {
   background: var(--accent);
-  color: #000;
+  color: #192126;
   font-weight: 600;
 }
 .exercise-option-cat {
@@ -329,6 +461,6 @@ async function startSession() {
   color: var(--text2);
 }
 .exercise-option.active .exercise-option-cat {
-  color: rgba(0,0,0,0.6);
+  color: rgba(25, 33, 38, 0.6);
 }
 </style>

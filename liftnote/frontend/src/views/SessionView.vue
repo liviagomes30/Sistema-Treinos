@@ -1,226 +1,120 @@
 <template>
-  <div>
-    <div style="display: grid; grid-template-columns: 1fr 280px; gap: 20px">
-      <div>
-        <div
-          style="
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin-bottom: 16px;
-          "
-        >
-          <div>
-            <div
-              style="
-                font-size: 11px;
-                color: var(--text2);
-                font-family: var(--font-mono);
-              "
-            >
-              SESSÃO ATIVA
-            </div>
-            <div style="font-family: var(--font-display); font-size: 26px">
-              {{ activeSession?.workoutName }}
-            </div>
-          </div>
-          <div style="margin-left: auto; display: flex; gap: 8px">
-            <button class="btn btn-ghost" @click="toggleTimer">
-              {{ timerRunning ? "⏸ Pausar" : "▶ Retomar" }}
-            </button>
-            <button class="btn btn-accent" @click="finishSession">
-              ✓ Finalizar
-            </button>
-            <button class="btn btn-danger" @click="cancelSession">✕</button>
-          </div>
-        </div>
-
-        <div
-          v-for="(ex, ei) in activeSession?.exercises || []"
-          :key="ex._id"
-          :class="['exercise-card', { active: activeExerciseIdx === ei }]"
-        >
-          <div
-            class="exercise-header"
-            @click="activeExerciseIdx = activeExerciseIdx === ei ? -1 : ei"
-          >
-            <div style="display: flex; align-items: center; gap: 10px">
-              <span :class="['tag', exerciseComplete(ex) ? 'tag-accent' : '']">
-                {{ exerciseComplete(ex) ? "✓" : ei + 1 }}
-              </span>
-              <div>
-                <div style="font-weight: 500">{{ ex.name }}</div>
-                <div style="font-size: 11px; color: var(--text2)">
-                  {{ ex.muscle_group }}
-                </div>
-              </div>
-            </div>
-            <div style="display: flex; gap: 6px; align-items: center">
-              <span class="tag">{{
-                ex.set_type === "pyramid"
-                  ? "Pirâmide"
-                  : ex.series + "x" + ex.reps
-              }}</span>
-              <span style="color: var(--text2)">{{
-                activeExerciseIdx === ei ? "▲" : "▼"
-              }}</span>
-            </div>
-          </div>
-          <div v-if="activeExerciseIdx === ei" class="exercise-sets">
-            <div
-              style="
-                display: grid;
-                grid-template-columns: 28px 80px 80px 80px auto;
-                gap: 8px;
-                padding: 8px 0 4px;
-                font-size: 10px;
-                color: var(--text3);
-                text-transform: uppercase;
-                letter-spacing: 0.5px;
-              "
-            >
-              <span>#</span><span>Peso (kg)</span><span>Reps</span
-              ><span>Alvo</span><span></span>
-            </div>
-            <div
-              v-for="(s, si) in getExSets(ex)"
-              :key="si"
-              style="
-                display: grid;
-                grid-template-columns: 28px 80px 80px 80px auto;
-                gap: 8px;
-                align-items: center;
-                padding: 6px 0;
-                border-bottom: 1px solid var(--border);
-              "
-            >
-              <span class="set-num">{{ si + 1 }}</span>
-              <input
-                type="number"
-                :value="s.weightLogged"
-                @change="logSet(ex._id, si, 'weight', $event.target.value)"
-                style="padding: 5px 8px; font-size: 12px"
-                min="0"
-              />
-              <input
-                type="number"
-                :value="s.repsLogged"
-                @change="logSet(ex._id, si, 'reps', $event.target.value)"
-                style="padding: 5px 8px; font-size: 12px"
-                min="0"
-              />
-              <span
-                style="
-                  font-size: 11px;
-                  color: var(--text2);
-                  font-family: var(--font-mono);
-                "
-                >{{ s.targetReps }}r @ {{ s.targetWeight }}kg</span
-              >
-              <button
-                class="btn btn-accent btn-sm"
-                v-if="!s.done"
-                @click="markSetDone(ex._id, si)"
-              >
-                ✓
-              </button>
-              <span v-else class="tag tag-accent">✓</span>
-            </div>
-            <div style="font-size: 11px; color: var(--text2); padding-top: 8px">
-              Descanso:
-              {{ ex.no_rest ? "Sem descanso" : ex.rest_seconds + "s" }}
-            </div>
-          </div>
-        </div>
+  <div class="active-session-page">
+    <div class="topbar-session">
+      <div class="icon-btn" @click="cancelSession">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
       </div>
-
-      <!-- Timer sidebar -->
-      <div>
-        <div class="card" style="text-align: center; margin-bottom: 12px">
-          <div
-            style="
-              font-size: 11px;
-              color: var(--text2);
-              letter-spacing: 1px;
-              text-transform: uppercase;
-              margin-bottom: 4px;
-            "
-          >
-            Tempo de treino
-          </div>
-          <div class="timer-display">{{ timerDisplay }}</div>
-          <div style="display: flex; gap: 8px; justify-content: center">
-            <button class="btn btn-ghost btn-sm" @click="toggleTimer">
-              {{ timerRunning ? "⏸" : "▶" }}
-            </button>
-            <button class="btn btn-ghost btn-sm" @click="resetTimer">↺</button>
-          </div>
-        </div>
-
-        <div class="card">
-          <h3>Progresso</h3>
-          <div style="margin-bottom: 12px">
-            <div
-              style="
-                display: flex;
-                justify-content: space-between;
-                font-size: 12px;
-                margin-bottom: 6px;
-              "
-            >
-              <span class="muted">Exercícios completos</span>
-              <span style="font-family: var(--font-mono)"
-                >{{ completedExercises }}/{{
-                  activeSession?.exercises?.length || 0
-                }}</span
-              >
-            </div>
-            <div
-              style="
-                height: 4px;
-                background: var(--bg4);
-                border-radius: 2px;
-                overflow: hidden;
-              "
-            >
-              <div
-                :style="{
-                  width:
-                    (completedExercises / (activeSession?.exercises?.length || 1)) *
-                      100 +
-                    '%',
-                  height: '100%',
-                  background: 'var(--accent)',
-                  transition: 'width 0.3s',
-                  borderRadius: '2px',
-                }"
-              ></div>
-            </div>
-          </div>
-          <div style="font-size: 12px; color: var(--text2)">
-            Volume atual:
-            <strong style="color: var(--accent)">{{ sessionVolume }} kg</strong>
-          </div>
-        </div>
-
-        <div class="card mt" style="margin-top: 12px">
-          <h3>Anotações</h3>
-          <textarea
-            v-model="activeSessionNotes"
-            rows="3"
-            placeholder="Como está se sentindo? Notas do treino..."
-            style="resize: none; font-size: 12px"
-          ></textarea>
-        </div>
+      <div class="timer-display" @click="toggleTimer">
+        <span v-if="!timerRunning" style="color: var(--accent)">Paused </span>
+        {{ timerDisplay }}
+      </div>
+      <div class="icon-btn">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="19" r="1"></circle></svg>
       </div>
     </div>
-  </div>
 
-  <!-- ─── HISTORY ─── -->
+    <!-- Active Exercise Focus -->
+    <div v-if="activeSession?.exercises?.length > 0" class="active-exercise-container">
+      <div class="video-placeholder">
+        <div class="play-btn">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#192126" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+        </div>
+      </div>
+
+      <div class="ex-header-nav">
+        <button class="nav-arrow" @click="prevExercise" :disabled="activeExerciseIdx === 0">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>
+        </button>
+        <div class="ex-title-container">
+          <h2 class="active-ex-name">{{ currentExercise?.name || 'Exercício' }}</h2>
+          <div class="active-ex-meta">{{ currentExercise?.series || 0 }} Sets • {{ currentExercise?.reps || 0 }} Reps</div>
+        </div>
+        <button class="nav-arrow" @click="nextExercise" :disabled="activeExerciseIdx === activeSession.exercises.length - 1">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </button>
+      </div>
+
+      <!-- Sets Slider -->
+      <div class="sets-slider-container">
+        <div class="sets-slider">
+          <div 
+            v-for="(s, si) in currentSets" 
+            :key="si"
+            class="set-pill"
+            :class="{ 'active': activeSetIdx === si, 'completed': s.done }"
+            @click="activeSetIdx = si"
+          >
+            <span v-if="s.done" class="check-icon">✓</span>
+            <span v-else>Set {{ si + 1 }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Current Set Input -->
+      <div class="current-set-editor card">
+        <div class="set-header">
+          <h3>Set {{ activeSetIdx + 1 }}</h3>
+          <span class="target-badge">Target: {{ currentSets[activeSetIdx]?.targetReps }}r @ {{ currentSets[activeSetIdx]?.targetWeight }}kg</span>
+        </div>
+        
+        <div class="set-inputs">
+          <div class="input-group">
+            <label>Weight (kg)</label>
+            <input 
+              type="number" 
+              :value="currentSets[activeSetIdx]?.weightLogged"
+              @change="logSet(currentExercise?._id || '', activeSetIdx, 'weight', ($event.target as HTMLInputElement).value)"
+              min="0"
+            />
+          </div>
+          <div class="input-group">
+            <label>Reps</label>
+            <input 
+              type="number" 
+              :value="currentSets[activeSetIdx]?.repsLogged"
+              @change="logSet(currentExercise?._id || '', activeSetIdx, 'reps', ($event.target as HTMLInputElement).value)"
+              min="0"
+            />
+          </div>
+        </div>
+
+        <button 
+          class="btn btn-large mt" 
+          :class="currentSets[activeSetIdx]?.done ? 'btn-ghost' : 'btn-accent'"
+          style="width: 100%;"
+          @click="markSetDone(currentExercise?._id || '', activeSetIdx)"
+        >
+          {{ currentSets[activeSetIdx]?.done ? '✓ Completed' : 'Complete Set' }}
+        </button>
+      </div>
+    </div>
+
+    <div v-else class="empty-state">
+      No exercises found in this session.
+    </div>
+
+    <!-- Progress Overview -->
+    <div class="progress-card card mt">
+      <div class="progress-header">
+        <span class="muted">Workout Progress</span>
+        <span style="font-weight: 600;">{{ completedExercises }}/{{ activeSession?.exercises?.length || 0 }}</span>
+      </div>
+      <div class="progress-bar-bg">
+        <div class="progress-bar-fill" :style="{ width: progressPercentage + '%' }"></div>
+      </div>
+      <div class="volume-stat mt">
+        Total Volume: <span style="color: var(--accent); font-weight: 700;">{{ sessionVolume }} kg</span>
+      </div>
+    </div>
+
+    <div class="bottom-action">
+      <button class="btn btn-accent btn-large" @click="finishSession">Finish Workout</button>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from "vue";
+import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import { useSessionStore } from "../store/sessionStore";
 import { useRouter } from "vue-router";
 import type { Session, Exercise } from "../types";
@@ -232,14 +126,22 @@ const activeSession = computed(() => sessionStore.activeSession);
 const timerDisplay = ref("00:00");
 const timerRunning = ref(true);
 const activeExerciseIdx = ref(0);
+const activeSetIdx = ref(0);
 const secondsElapsed = ref(0);
 let timerInterval: any = null;
 
-const activeSessionNotes = computed({
-  get: () => activeSession.value?.notes || '',
-  set: (val) => {
-    if (activeSession.value) activeSession.value.notes = val;
-  }
+const currentExercise = computed(() => {
+  if (!activeSession.value?.exercises) return null;
+  return activeSession.value.exercises[activeExerciseIdx.value] || null;
+});
+
+const currentSets = computed(() => {
+  if (!currentExercise.value) return [];
+  return getExSets(currentExercise.value);
+});
+
+watch(activeExerciseIdx, () => {
+  activeSetIdx.value = 0; // reset set view when changing exercise
 });
 
 onMounted(() => {
@@ -274,9 +176,14 @@ function toggleTimer() {
   else startTimer();
 }
 
-function resetTimer() {
-  secondsElapsed.value = 0;
-  timerDisplay.value = "00:00";
+function prevExercise() {
+  if (activeExerciseIdx.value > 0) activeExerciseIdx.value--;
+}
+
+function nextExercise() {
+  if (activeSession.value && activeExerciseIdx.value < activeSession.value.exercises.length - 1) {
+    activeExerciseIdx.value++;
+  }
 }
 
 async function finishSession() {
@@ -296,6 +203,11 @@ async function cancelSession() {
 const completedExercises = computed(() => {
   if (!activeSession.value?.exercises) return 0;
   return activeSession.value.exercises.filter(ex => exerciseComplete(ex)).length;
+});
+
+const progressPercentage = computed(() => {
+  const total = activeSession.value?.exercises?.length || 1;
+  return (completedExercises.value / total) * 100;
 });
 
 const sessionVolume = computed(() => {
@@ -329,11 +241,9 @@ function getExSets(exercise: any): any[] {
 }
 
 async function logSet(exerciseId: string, setIndex: number, field: string, value: any) {
-  // Atualização local para feedback instantâneo (opcional, aqui simplificado)
   const exercise = activeSession.value?.exercises.find((ex: any) => ex.exercise_id === exerciseId);
   if (!exercise) return;
-  
-  // No mundo real, você pode querer debouncing ou salvar apenas no 'markSetDone'
+  // Local state update for smooth typing could go here
 }
 
 async function markSetDone(exerciseId: string, setIndex: number) {
@@ -343,10 +253,12 @@ async function markSetDone(exerciseId: string, setIndex: number) {
   const setNum = setIndex + 1;
   const existingLogIdx = exercise.logs.findIndex((l: any) => l.set_number === setNum);
   
+  const currentSetData = currentSets.value[setIndex];
+  
   const logData = {
     set_number: setNum,
-    reps_done: exercise.reps || 10, // Idealmente pegar do input
-    weight_used_kg: exercise.weight_kg || 0
+    reps_done: currentSetData.repsLogged || exercise.reps || 10,
+    weight_used_kg: currentSetData.weightLogged || exercise.weight_kg || 0
   };
 
   try {
@@ -356,9 +268,242 @@ async function markSetDone(exerciseId: string, setIndex: number) {
     } else {
       exercise.logs.push(logData);
     }
+    
+    // Auto advance set
+    if (activeSetIdx.value < exercise.series - 1) {
+      activeSetIdx.value++;
+    } else if (activeExerciseIdx.value < activeSession.value!.exercises.length - 1) {
+      // Optional: Auto advance exercise when all sets done
+      // activeExerciseIdx.value++;
+    }
   } catch (err) {
     console.error(err);
   }
 }
 
 </script>
+
+<style scoped>
+.active-session-page {
+  padding: 20px;
+  padding-bottom: 100px;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+.topbar-session {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+.icon-btn {
+  cursor: pointer;
+  color: var(--text);
+}
+.timer-display {
+  font-family: var(--font-mono);
+  font-size: 20px;
+  font-weight: 700;
+  background: var(--surface);
+  padding: 8px 16px;
+  border-radius: 20px;
+  cursor: pointer;
+}
+
+.active-exercise-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.video-placeholder {
+  width: 100%;
+  aspect-ratio: 16/9;
+  background: var(--surface);
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 24px;
+  border: 1px solid var(--border);
+  position: relative;
+  overflow: hidden;
+}
+.video-placeholder::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: linear-gradient(45deg, rgba(255,255,255,0.05) 25%, transparent 25%, transparent 50%, rgba(255,255,255,0.05) 50%, rgba(255,255,255,0.05) 75%, transparent 75%, transparent);
+  background-size: 20px 20px;
+  opacity: 0.5;
+}
+.play-btn {
+  width: 48px;
+  height: 48px;
+  background: var(--accent);
+  border-radius: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+}
+
+.ex-header-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+.nav-arrow {
+  background: var(--surface);
+  border: none;
+  color: var(--text);
+  width: 40px;
+  height: 40px;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.nav-arrow:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+.ex-title-container {
+  text-align: center;
+  flex: 1;
+  padding: 0 16px;
+}
+.active-ex-name {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+.active-ex-meta {
+  font-size: 13px;
+  color: var(--text2);
+}
+
+.sets-slider-container {
+  margin-bottom: 24px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+.sets-slider {
+  display: flex;
+  gap: 12px;
+}
+.set-pill {
+  padding: 10px 20px;
+  border-radius: 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.set-pill.active {
+  background: var(--surface);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.set-pill.completed {
+  background: rgba(187, 242, 70, 0.1);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.current-set-editor {
+  padding: 20px;
+  border-radius: 20px;
+  background: var(--surface);
+}
+.set-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.set-header h3 {
+  font-size: 18px;
+  margin: 0;
+}
+.target-badge {
+  font-size: 11px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  padding: 4px 8px;
+  border-radius: 4px;
+  color: var(--text2);
+}
+
+.set-inputs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.input-group label {
+  display: block;
+  font-size: 12px;
+  color: var(--text2);
+  margin-bottom: 8px;
+}
+.input-group input {
+  width: 100%;
+  background: var(--bg);
+  border: none;
+  padding: 16px;
+  border-radius: 12px;
+  color: var(--text);
+  font-size: 18px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  text-align: center;
+  outline: none;
+}
+
+.progress-card {
+  padding: 16px;
+}
+.progress-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+.progress-bar-bg {
+  height: 6px;
+  background: var(--bg4);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.progress-bar-fill {
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.3s ease;
+}
+
+.bottom-action {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 16px 20px 24px;
+  background: linear-gradient(0deg, var(--bg) 80%, rgba(25, 33, 38, 0));
+  display: flex;
+  justify-content: center;
+  z-index: 100;
+}
+.bottom-action .btn-large {
+  max-width: 440px;
+  width: 100%;
+}
+</style>

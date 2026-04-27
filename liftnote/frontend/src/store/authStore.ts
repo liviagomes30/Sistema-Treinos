@@ -4,9 +4,15 @@ import type { User, LoginData, RegisterData } from "../types";
 import { authService } from "../services/authService";
 
 export const useAuthStore = defineStore("auth", () => {
-  const currentUser = ref<User | null>(
-    JSON.parse(localStorage.getItem("user") || "null")
-  );
+  let savedUser = null;
+  try {
+    const userItem = localStorage.getItem("user");
+    savedUser = userItem ? JSON.parse(userItem) : null;
+  } catch (e) {
+    console.error("Failed to parse user from localStorage", e);
+    localStorage.removeItem("user");
+  }
+  const currentUser = ref<User | null>(savedUser);
   const token = ref<string | null>(localStorage.getItem("token"));
   const isLoading = ref(false);
   const error = ref<string | null>(null);
