@@ -62,8 +62,7 @@
             <label>Weight (kg)</label>
             <input 
               type="number" 
-              :value="currentSets[activeSetIdx]?.weightLogged"
-              @change="logSet(currentExercise?._id || '', activeSetIdx, 'weight', ($event.target as HTMLInputElement).value)"
+              v-model.number="currentWeightInput"
               min="0"
             />
           </div>
@@ -71,8 +70,7 @@
             <label>Reps</label>
             <input 
               type="number" 
-              :value="currentSets[activeSetIdx]?.repsLogged"
-              @change="logSet(currentExercise?._id || '', activeSetIdx, 'reps', ($event.target as HTMLInputElement).value)"
+              v-model.number="currentRepsInput"
               min="0"
             />
           </div>
@@ -130,6 +128,9 @@ const activeSetIdx = ref(0);
 const secondsElapsed = ref(0);
 let timerInterval: any = null;
 
+const currentWeightInput = ref(0);
+const currentRepsInput = ref(0);
+
 const currentExercise = computed(() => {
   if (!activeSession.value?.exercises) return null;
   return activeSession.value.exercises[activeExerciseIdx.value] || null;
@@ -140,8 +141,21 @@ const currentSets = computed(() => {
   return getExSets(currentExercise.value);
 });
 
+function loadSetInputs() {
+  const set = currentSets.value[activeSetIdx.value];
+  if (set) {
+    currentWeightInput.value = set.weightLogged ?? 0;
+    currentRepsInput.value = set.repsLogged ?? 0;
+  }
+}
+
 watch(activeExerciseIdx, () => {
-  activeSetIdx.value = 0; // reset set view when changing exercise
+  activeSetIdx.value = 0;
+  loadSetInputs();
+});
+
+watch(activeSetIdx, () => {
+  loadSetInputs();
 });
 
 onMounted(() => {
@@ -150,6 +164,7 @@ onMounted(() => {
     return;
   }
   startTimer();
+  loadSetInputs();
 });
 
 onUnmounted(() => {
@@ -240,11 +255,6 @@ function getExSets(exercise: any): any[] {
   return sets;
 }
 
-async function logSet(exerciseId: string, setIndex: number, field: string, value: any) {
-  const exercise = activeSession.value?.exercises.find((ex: any) => ex.exercise_id === exerciseId);
-  if (!exercise) return;
-  // Local state update for smooth typing could go here
-}
 
 async function markSetDone(exerciseId: string, setIndex: number) {
   const exercise = activeSession.value?.exercises.find((ex: any) => ex.exercise_id === exerciseId);
@@ -257,8 +267,8 @@ async function markSetDone(exerciseId: string, setIndex: number) {
   
   const logData = {
     set_number: setNum,
-    reps_done: currentSetData.repsLogged || exercise.reps || 10,
-    weight_used_kg: currentSetData.weightLogged || exercise.weight_kg || 0
+    reps_done: currentRepsInput.value || exercise.reps || 10,
+    weight_used_kg: currentWeightInput.value || exercise.weight_kg || 0
   };
 
   try {
@@ -272,6 +282,7 @@ async function markSetDone(exerciseId: string, setIndex: number) {
     // Auto advance set
     if (activeSetIdx.value < exercise.series - 1) {
       activeSetIdx.value++;
+      loadSetInputs();
     } else if (activeExerciseIdx.value < activeSession.value!.exercises.length - 1) {
       // Optional: Auto advance exercise when all sets done
       // activeExerciseIdx.value++;
