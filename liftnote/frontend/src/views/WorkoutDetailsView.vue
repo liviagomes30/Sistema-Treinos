@@ -403,14 +403,13 @@ async function startSession() {
 
 .bottom-action {
   position: fixed;
-  bottom: 0;
+  bottom: 68px;
   left: 0;
   right: 0;
-  padding: 16px 20px 24px;
-  background: linear-gradient(0deg, var(--bg) 80%, rgba(25, 33, 38, 0));
+  padding: 16px 20px 8px;
   display: flex;
   justify-content: center;
-  z-index: 100;
+  z-index: 99;
 }
 .bottom-action .btn-large {
   max-width: 440px;
