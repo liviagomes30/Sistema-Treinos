@@ -5,7 +5,7 @@
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
       </div>
       <div class="timer-display" @click="toggleTimer">
-        <span v-if="!timerRunning" style="color: var(--accent)">Paused </span>
+        <span v-if="!timerRunning" style="color: var(--accent)">Pausado </span>
         {{ timerDisplay }}
       </div>
       <div class="icon-btn">
@@ -27,7 +27,11 @@
         </button>
         <div class="ex-title-container">
           <h2 class="active-ex-name">{{ currentExercise?.name || 'Exercício' }}</h2>
-          <div class="active-ex-meta">{{ currentExercise?.series || 0 }} Sets • {{ currentExercise?.reps || 0 }} Reps</div>
+          <div class="active-ex-meta">
+            {{ formatMuscleGroup(currentExercise?.muscle_group) }} • 
+            {{ currentExercise?.series || 0 }} Séries • 
+            {{ currentExercise?.reps || 0 }} Reps
+          </div>
         </div>
         <button class="nav-arrow" @click="nextExercise" :disabled="activeExerciseIdx === activeSession.exercises.length - 1">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
@@ -45,21 +49,26 @@
             @click="activeSetIdx = si"
           >
             <span v-if="s.done" class="check-icon">✓</span>
-            <span v-else>Set {{ si + 1 }}</span>
+            <span v-else>Série {{ si + 1 }}</span>
           </div>
         </div>
       </div>
 
       <!-- Current Set Input -->
       <div class="current-set-editor card">
-        <div class="set-header">
-          <h3>Set {{ activeSetIdx + 1 }}</h3>
-          <span class="target-badge">Target: {{ currentSets[activeSetIdx]?.targetReps }}r @ {{ currentSets[activeSetIdx]?.targetWeight }}kg</span>
+        <div class="set-header" style="flex-direction: column; align-items: flex-start; gap: 8px;">
+          <div style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
+            <h3>Série {{ activeSetIdx + 1 }}</h3>
+            <span class="target-badge">Objetivo: {{ currentSets[activeSetIdx]?.targetReps }} Reps | {{ currentSets[activeSetIdx]?.targetWeight }}kg</span>
+          </div>
+          <div v-if="lastSessionWeight !== null" style="font-size: 12px; color: var(--text2);">
+            Último treino: <strong style="color: var(--text);">{{ lastSessionWeight }}kg</strong> ({{ lastSessionReps }} reps)
+          </div>
         </div>
         
         <div class="set-inputs">
           <div class="input-group">
-            <label>Weight (kg)</label>
+            <label>Peso (kg)</label>
             <input 
               type="number" 
               v-model.number="currentWeightInput"
@@ -80,44 +89,70 @@
           class="btn btn-large mt" 
           :class="currentSets[activeSetIdx]?.done ? 'btn-ghost' : 'btn-accent'"
           style="width: 100%;"
-          @click="markSetDone(currentExercise?._id || '', activeSetIdx)"
+          @click="markSetDone(currentExercise?.exercise_id || '', activeSetIdx)"
         >
-          {{ currentSets[activeSetIdx]?.done ? '✓ Completed' : 'Complete Set' }}
+          {{ currentSets[activeSetIdx]?.done ? '✓ Completo' : 'Completar Série' }}
         </button>
       </div>
     </div>
 
     <div v-else class="empty-state">
-      No exercises found in this session.
+      Nenhum exercício encontrado nesta sessão.
     </div>
 
     <!-- Progress Overview -->
     <div class="progress-card card mt">
       <div class="progress-header">
-        <span class="muted">Workout Progress</span>
+        <span class="muted">Progresso do Treino</span>
         <span style="font-weight: 600;">{{ completedExercises }}/{{ activeSession?.exercises?.length || 0 }}</span>
       </div>
       <div class="progress-bar-bg">
         <div class="progress-bar-fill" :style="{ width: progressPercentage + '%' }"></div>
       </div>
       <div class="volume-stat mt">
-        Total Volume: <span style="color: var(--accent); font-weight: 700;">{{ sessionVolume }} kg</span>
+        Volume Total: <span style="color: var(--accent); font-weight: 700;">{{ sessionVolume }} kg</span>
       </div>
     </div>
 
     <div class="bottom-action">
-      <button class="btn btn-accent btn-large" @click="finishSession">Finish Workout</button>
+      <button class="btn btn-accent btn-large" @click="finishSession">Finalizar Treino</button>
     </div>
+
+    <!-- Modais de Confirmação -->
+    <ConfirmModal 
+      v-model:isOpen="showFinishModal"
+      title="Finalizar Treino"
+      message="Deseja finalizar este treino? Suas séries concluídas serão salvas no histórico."
+      confirmText="Finalizar"
+      cancelText="Cancelar"
+      :isDanger="false"
+      @confirm="confirmFinishSession"
+    />
+    
+    <ConfirmModal 
+      v-model:isOpen="showCancelModal"
+      title="Cancelar Treino"
+      message="Tem certeza que deseja cancelar este treino? Os dados não serão salvos."
+      confirmText="Sim, Cancelar"
+      cancelText="Voltar"
+      :isDanger="true"
+      @confirm="confirmCancelSession"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import { useSessionStore } from "../store/sessionStore";
+import { useAppStore } from "../store/appStore";
 import { useRouter } from "vue-router";
+import { formatMuscleGroup } from "../utils/formatters";
+import { exerciseService } from "../services/exerciseService";
+import ConfirmModal from "../components/ui/ConfirmModal.vue";
 import type { Session, Exercise } from "../types";
 
 const sessionStore = useSessionStore();
+const appStore = useAppStore();
 const router = useRouter();
 
 const activeSession = computed(() => sessionStore.activeSession);
@@ -127,6 +162,9 @@ const activeExerciseIdx = ref(0);
 const activeSetIdx = ref(0);
 const secondsElapsed = ref(0);
 let timerInterval: any = null;
+
+const showFinishModal = ref(false);
+const showCancelModal = ref(false);
 
 const currentWeightInput = ref(0);
 const currentRepsInput = ref(0);
@@ -144,18 +182,61 @@ const currentSets = computed(() => {
 function loadSetInputs() {
   const set = currentSets.value[activeSetIdx.value];
   if (set) {
-    currentWeightInput.value = set.weightLogged ?? 0;
-    currentRepsInput.value = set.repsLogged ?? 0;
+    if (!set.done && lastSessionExerciseLog.value) {
+      currentWeightInput.value = lastSessionExerciseLog.value.weight_used_kg ?? set.targetWeight;
+      currentRepsInput.value = lastSessionExerciseLog.value.reps_done ?? set.targetReps;
+    } else {
+      currentWeightInput.value = set.weightLogged ?? 0;
+      currentRepsInput.value = set.repsLogged ?? 0;
+    }
+  }
+}
+
+const lastSessionExerciseLog = ref<any>(null);
+
+const lastSessionWeight = computed(() => lastSessionExerciseLog.value?.weight_used_kg ?? null);
+const lastSessionReps = computed(() => lastSessionExerciseLog.value?.reps_done ?? null);
+
+async function fetchLastSessionLog() {
+  if (!currentExercise.value?.exercise_catalog_id) {
+    lastSessionExerciseLog.value = null;
+    return;
+  }
+  try {
+    const history = await exerciseService.getHistory(currentExercise.value.exercise_catalog_id);
+    if (history && history.length > 0) {
+      const setNum = activeSetIdx.value + 1;
+      
+      // Achar o registro mais recente (já vem ordenado do banco)
+      // Primeiro tentamos achar da MESMA série (ex: Série 2 do último treino)
+      let matchLog = history.find((l: any) => l.set_number === setNum && l.session_id?.status === 'completed');
+      
+      // Se não achar a série exata (ex: fez só 1 série da última vez), pega a última série feita
+      if (!matchLog) {
+        matchLog = history.find((l: any) => l.session_id?.status === 'completed');
+      }
+                    
+      lastSessionExerciseLog.value = matchLog || null;
+      loadSetInputs(); // Re-trigger load to pre-fill
+    } else {
+      lastSessionExerciseLog.value = null;
+    }
+  } catch (err) {
+    console.error("Erro ao buscar histórico do exercício:", err);
+    lastSessionExerciseLog.value = null;
   }
 }
 
 watch(activeExerciseIdx, () => {
   activeSetIdx.value = 0;
+  lastSessionExerciseLog.value = null;
   loadSetInputs();
+  fetchLastSessionLog();
 });
 
 watch(activeSetIdx, () => {
   loadSetInputs();
+  fetchLastSessionLog();
 });
 
 onMounted(() => {
@@ -165,6 +246,7 @@ onMounted(() => {
   }
   startTimer();
   loadSetInputs();
+  fetchLastSessionLog();
 });
 
 onUnmounted(() => {
@@ -201,18 +283,22 @@ function nextExercise() {
   }
 }
 
-async function finishSession() {
-  if (confirm("Deseja finalizar este treino?")) {
-    await sessionStore.finishSession();
-    router.push("/history");
-  }
+function finishSession() {
+  showFinishModal.value = true;
 }
 
-async function cancelSession() {
-  if (confirm("Tem certeza que deseja cancelar este treino? Os dados não serão salvos.")) {
-    await sessionStore.cancelSession();
-    router.push("/workouts");
-  }
+async function confirmFinishSession() {
+  await sessionStore.finishSession();
+  router.push("/history");
+}
+
+function cancelSession() {
+  showCancelModal.value = true;
+}
+
+async function confirmCancelSession() {
+  await sessionStore.cancelSession();
+  router.push("/workouts");
 }
 
 const completedExercises = computed(() => {

@@ -59,8 +59,8 @@
       <button class="btn btn-accent btn-large" @click="startSession">Iniciar Treino</button>
     </div>
 
-    <!-- Modal Adicionar Exercício -->
-    <BaseModal v-model="showAddExercise" title="Adicionar Exercício">
+    <!-- Modal Adicionar/Editar Exercício -->
+    <BaseModal :modelValue="showAddExercise" @update:modelValue="val => { if (!val) resetModal(); showAddExercise = val; }" :title="isEditing ? 'Editar Exercício' : 'Adicionar Exercício'">
       <div class="form-group mb">
         <label>1. Grupo Muscular (Opcional)</label>
         <select v-model="selectedCategory" @change="handleCategoryChange" style="width: 100%">
@@ -133,12 +133,23 @@
       </div>
 
       <div class="flex-end mt">
-        <button class="btn btn-ghost" @click="showAddExercise = false">Cancelar</button>
-        <button class="btn btn-accent" :disabled="!selectedCatalogId" @click="handleAddExercise">
+        <button class="btn btn-ghost" @click="resetModal()">Cancelar</button>
+        <button class="btn btn-accent" :disabled="!selectedCatalogId" @click="handleSaveExercise">
           Confirmar
         </button>
       </div>
     </BaseModal>
+
+    <!-- Modal Confirmação de Exclusão -->
+    <ConfirmModal 
+      v-model:isOpen="showRemoveModal"
+      title="Remover Exercício"
+      message="Tem certeza que deseja remover este exercício do seu treino?"
+      confirmText="Remover"
+      cancelText="Cancelar"
+      :isDanger="true"
+      @confirm="confirmRemoveExercise"
+    />
   </div>
 </template>
 
@@ -149,6 +160,8 @@ import { workoutService } from '../services/workoutService';
 import { exerciseService } from '../services/exerciseService';
 import { useSessionStore } from '../store/sessionStore';
 import BaseModal from '../components/ui/BaseModal.vue';
+import ConfirmModal from '../components/ui/ConfirmModal.vue';
+import { formatMuscleGroup } from '../utils/formatters';
 import type { Workout, Exercise, ExerciseCatalogItem } from '../types';
 
 const route = useRoute();
@@ -162,6 +175,12 @@ const catalog = ref<ExerciseCatalogItem[]>([]);
 const loading = ref(true);
 
 const showAddExercise = ref(false);
+const isEditing = ref(false);
+const editingExerciseId = ref('');
+
+const showRemoveModal = ref(false);
+const exerciseToRemove = ref<string | null>(null);
+
 const selectedCategory = ref('');
 const selectedCatalogId = ref('');
 const searchQuery = ref('');
@@ -190,41 +209,7 @@ const selectedExerciseData = computed(() => {
   return catalog.value.find(c => c._id === selectedCatalogId.value) || null;
 });
 
-const muscleGroupTranslations: Record<string, string> = {
-  chest: 'Peito',
-  back: 'Costas',
-  legs: 'Pernas',
-  shoulders: 'Ombros',
-  arms: 'Braços',
-  abs: 'Abdômen',
-  cardio: 'Cardio',
-  'full body': 'Corpo Inteiro',
-  abdominais: 'Abdominais',
-  isquiotibiais: 'Isquiotibiais',
-  adutores: 'Adutores',
-  quadriceps: 'Quadríceps',
-  ombros: 'Ombros',
-  peito: 'Peito',
-  'meio-das-costas': 'Meio das Costas',
-  panturrilhas: 'Panturrilhas',
-  gluteos: 'Glúteos',
-  'inferior-das-costas': 'Lombar',
-  dorsais: 'Dorsais',
-  triceps: 'Tríceps',
-  trapezio: 'Trapézio',
-  antebracos: 'Antebraços',
-  pescoco: 'Pescoço',
-  abdutores: 'Abdutores'
-};
 
-function formatMuscleGroup(str: string) {
-  if (!str) return '';
-  const key = str.toLowerCase();
-  if (muscleGroupTranslations[key]) {
-    return muscleGroupTranslations[key];
-  }
-  return str.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
-}
 
 function handleCategoryChange() {
   selectedCatalogId.value = '';
@@ -259,35 +244,78 @@ onMounted(async () => {
   }
 });
 
-async function handleAddExercise() {
+function resetModal() {
+  showAddExercise.value = false;
+  isEditing.value = false;
+  editingExerciseId.value = '';
+  selectedCategory.value = '';
+  selectedCatalogId.value = '';
+  searchQuery.value = '';
+  exerciseForm.value = {
+    series: 3, reps: 10, weight_kg: 0, rest_seconds: 60,
+    set_type: 'linear', no_rest: false, is_optional: false, notes: '', pyramid_sets: []
+  };
+}
+
+async function handleSaveExercise() {
   const catalogItem = catalog.value.find(c => c._id === selectedCatalogId.value);
   if (!catalogItem) return;
 
   try {
-    const newEx = await workoutService.addExercise(workoutId, {
-      ...exerciseForm.value,
-      exercise_catalog_id: selectedCatalogId.value,
-      order: exercises.value.length + 1
-    });
-    exercises.value.push(newEx);
-    showAddExercise.value = false;
-    selectedCategory.value = '';
-    selectedCatalogId.value = '';
-    searchQuery.value = '';
+    if (isEditing.value) {
+      const updatedEx = await workoutService.updateExercise(workoutId, editingExerciseId.value, {
+        ...exerciseForm.value,
+        exercise_catalog_id: selectedCatalogId.value
+      });
+      const index = exercises.value.findIndex(e => e._id === editingExerciseId.value);
+      if (index !== -1) {
+        exercises.value[index] = updatedEx;
+      }
+    } else {
+      const newEx = await workoutService.addExercise(workoutId, {
+        ...exerciseForm.value,
+        exercise_catalog_id: selectedCatalogId.value,
+        order: exercises.value.length + 1
+      });
+      exercises.value.push(newEx);
+    }
+    resetModal();
   } catch (err: any) {
-    console.error('Erro ao adicionar exercício', err.response?.data || err);
+    console.error('Erro ao salvar exercício', err.response?.data || err);
   }
 }
 
 function editExercise(ex: any) {
-  alert("A edição de exercício será implementada em breve.");
+  isEditing.value = true;
+  editingExerciseId.value = ex._id;
+  selectedCatalogId.value = ex.exercise_catalog_id?._id || ex.exercise_catalog_id || '';
+  selectedCategory.value = ex.exercise_catalog_id?.muscle_group || '';
+  
+  exerciseForm.value = {
+    series: ex.series || 3,
+    reps: ex.reps || 10,
+    weight_kg: ex.weight_kg || 0,
+    rest_seconds: ex.rest_seconds || 60,
+    set_type: ex.set_type || 'linear',
+    no_rest: ex.no_rest || false,
+    is_optional: ex.is_optional || false,
+    notes: ex.notes || '',
+    pyramid_sets: ex.pyramid_sets || []
+  };
+  showAddExercise.value = true;
 }
 
-async function removeExercise(id: string) {
-  if (!confirm('Remover este exercício do treino?')) return;
+function removeExercise(id: string) {
+  exerciseToRemove.value = id;
+  showRemoveModal.value = true;
+}
+
+async function confirmRemoveExercise() {
+  if (!exerciseToRemove.value) return;
   try {
-    await workoutService.removeExercise(workoutId, id);
-    exercises.value = exercises.value.filter(e => e._id !== id);
+    await workoutService.removeExercise(workoutId, exerciseToRemove.value);
+    exercises.value = exercises.value.filter(e => e._id !== exerciseToRemove.value);
+    exerciseToRemove.value = null;
   } catch (err) {
     console.error('Erro ao remover exercício', err);
   }

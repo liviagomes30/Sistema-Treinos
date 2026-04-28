@@ -12,7 +12,7 @@
 
     <div class="calendar-wrapper mb">
       <div class="weekdays">
-        <div class="weekday" v-for="day in ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']" :key="day">{{ day }}</div>
+        <div class="weekday" v-for="day in ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']" :key="day">{{ day }}</div>
       </div>
       <div class="days-grid">
         <div 
@@ -45,8 +45,8 @@
 
     <div class="daily-plan-section">
       <div class="section-header">
-        <h2 class="section-title">Daily plan</h2>
-        <span class="view-all">View All</span>
+        <h2 class="section-title">Plano diário</h2>
+        <span class="view-all">Ver tudo</span>
       </div>
 
       <div v-if="filteredHistory.length === 0" class="empty-state">
@@ -84,6 +84,17 @@
         </div>
       </div>
     </div>
+
+    <!-- Modal Confirmação de Exclusão -->
+    <ConfirmModal 
+      v-model:isOpen="showDeleteModal"
+      title="Excluir Sessão"
+      message="Tem certeza que deseja excluir esta sessão do seu histórico? Esta ação não pode ser desfeita."
+      confirmText="Excluir"
+      cancelText="Cancelar"
+      :isDanger="true"
+      @confirm="confirmDeleteSession"
+    />
   </div>
 </template>
 
@@ -91,17 +102,21 @@
 import { ref, computed, onMounted } from 'vue';
 import { useAppStore } from '../store/appStore';
 import { sessionService } from '../services/sessionService';
+import ConfirmModal from '../components/ui/ConfirmModal.vue';
 import type { Session } from '../types';
 
 const appStore = useAppStore();
 const historySearch = ref('');
 const historyFilter = ref('');
 
+const showDeleteModal = ref(false);
+const sessionToDelete = ref<string | null>(null);
+
 const selectedDate = ref<Date>(new Date());
 const currentMonth = ref<number>(new Date().getMonth());
 const currentYear = ref<number>(new Date().getFullYear());
 
-const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const monthNames = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 const currentMonthName = computed(() => monthNames[currentMonth.value]);
 
 interface CalendarDay {
@@ -194,14 +209,19 @@ const filteredHistory = computed<Session[]>(() => {
   return sessions.sort((a, b) => new Date(b.started_at).getTime() - new Date(a.started_at).getTime());
 });
 
-async function deleteSession(id: string) {
-  if (confirm("Tem certeza que deseja excluir esta sessão?")) {
-    try {
-      await sessionService.delete(id);
-      await appStore.fetchSessions();
-    } catch (err) {
-      console.error(err);
-    }
+function deleteSession(id: string) {
+  sessionToDelete.value = id;
+  showDeleteModal.value = true;
+}
+
+async function confirmDeleteSession() {
+  if (!sessionToDelete.value) return;
+  try {
+    await sessionService.delete(sessionToDelete.value);
+    await appStore.fetchSessions();
+    sessionToDelete.value = null;
+  } catch (err) {
+    console.error(err);
   }
 }
 
