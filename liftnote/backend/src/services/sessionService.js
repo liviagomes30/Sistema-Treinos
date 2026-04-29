@@ -3,13 +3,24 @@ const AppError = require("../utils/AppError");
 
 class SessionService {
   async getAll(userId, query) {
-    const { workout_id, status, limit, page } = query;
+    const { workout_id, status, limit, page, date_from, date_to, include_logs } = query;
     const filter = { user_id: userId };
-    
+
     if (workout_id) filter.workout_id = workout_id;
     if (status) filter.status = status;
+    if (date_from || date_to) {
+      filter.started_at = {};
+      if (date_from) filter.started_at.$gte = new Date(date_from);
+      if (date_to) filter.started_at.$lte = new Date(date_to);
+    }
 
     const skip = (page - 1) * limit;
+
+    if (include_logs === "true") {
+      const sessions = await repository.findWithLogs(filter, skip, limit);
+      const total = await repository.countDocuments(filter);
+      return { data: sessions, total, page, limit };
+    }
 
     const sessions = await repository.find(filter, skip, limit);
     const total = await repository.countDocuments(filter);

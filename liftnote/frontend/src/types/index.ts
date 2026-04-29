@@ -54,26 +54,47 @@ export interface Exercise {
   order: number;
 }
 
-export interface ExerciseLog {
-  series: number;
-  reps_done: number;
-  weight_used: number;
+export interface ExerciseCatalogRef {
+  _id: string;
+  name: string;
+  muscle_group: string;
 }
 
-export interface SessionExercise {
-  exercise_id: string;
-  logs: ExerciseLog[];
+export interface WorkoutExerciseRef {
+  _id: string;
+  custom_name?: string;
+  set_type?: string;
+  order?: number;
+  exercise_catalog_id: ExerciseCatalogRef;
+}
+
+export interface ExerciseLog {
+  _id: string;
+  session_id: string;
+  workout_exercise_id: WorkoutExerciseRef;
+  set_number: number;
+  reps_done: number;
+  weight_used_kg: number;
+  logged_at: string;
+  notes?: string | null;
+  volume?: number;
+}
+
+export interface WorkoutRef {
+  _id: string;
+  name: string;
+  description?: string | null;
 }
 
 export interface Session {
   _id: string;
   user_id?: string;
-  workout_id: string;
-  workoutName?: string;
+  workout_id: string | WorkoutRef;
   started_at: string;
-  ended_at?: string;
-  duration_seconds?: number;
-  totalVolume?: number;
+  finished_at?: string | null;
+  duration_seconds?: number | null;
+  duration_formatted?: string | null;
   status: 'in_progress' | 'completed' | 'cancelled';
-  exercises?: SessionExercise[];
+  ai_summary?: string | null;
+  logs?: ExerciseLog[];
 }

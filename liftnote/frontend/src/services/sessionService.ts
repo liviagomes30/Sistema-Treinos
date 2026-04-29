@@ -1,11 +1,30 @@
 import api from './api';
 import type { Session } from '../types';
 
+export interface SessionQuery {
+  workout_id?: string;
+  status?: string;
+  page?: number;
+  limit?: number;
+  date_from?: string;
+  date_to?: string;
+  include_logs?: boolean;
+}
+
 export const sessionService = {
-  async getAll(params: Record<string, any> = {}): Promise<Session[]> {
-    const response = await api.get<{ data: Session[] }>('/sessions', { params });
-    // O backend retorna { data: [...], total, page, limit }
+  async getAll(params: SessionQuery = {}): Promise<Session[]> {
+    const query: Record<string, any> = { ...params };
+    if (params.include_logs !== undefined) {
+      query.include_logs = params.include_logs ? 'true' : 'false';
+    }
+    const response = await api.get<{ data: Session[] }>('/sessions', { params: query });
     return response.data.data;
+  },
+
+  async getByMonth(year: number, month: number): Promise<Session[]> {
+    const date_from = new Date(year, month - 1, 1).toISOString();
+    const date_to = new Date(year, month, 0, 23, 59, 59, 999).toISOString();
+    return sessionService.getAll({ date_from, date_to, include_logs: true, limit: 200 });
   },
 
   async getById(id: string): Promise<Session> {
