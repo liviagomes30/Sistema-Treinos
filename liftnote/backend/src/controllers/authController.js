@@ -1,4 +1,5 @@
 const authService = require("../services/authService");
+const emailService = require("../services/emailService");
 
 // POST /api/auth/register
 const register = async (req, res, next) => {
@@ -27,14 +28,22 @@ const forgotPassword = async (req, res, next) => {
     const { email } = req.body;
     const { token } = await authService.forgotPassword(email);
 
-    // Em produção: enviar por e-mail. Em desenvolvimento, retorna o token na resposta.
-    const response = { message: "Token de redefinição gerado" };
-    if (process.env.NODE_ENV !== "production") {
-      response.reset_token = token;
-    }
-    
-    res.json(response);
+    // Envia o e-mail com o link de redefinição
+    await emailService.sendPasswordReset(email, token);
+
+    // Resposta genérica — não confirma nem nega se o e-mail existe (segurança)
+    res.json({
+      message:
+        "Se este e-mail estiver cadastrado, você receberá as instruções em breve.",
+    });
   } catch (err) {
+    // Se for erro de "usuário não encontrado", ainda retorna 200 genérico (evita enumeração)
+    if (err.statusCode === 404) {
+      return res.json({
+        message:
+          "Se este e-mail estiver cadastrado, você receberá as instruções em breve.",
+      });
+    }
     next(err);
   }
 };

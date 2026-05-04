@@ -13,6 +13,7 @@ const exerciseCatalogController = require("../controllers/exerciseCatalogControl
 const sessionController = require("../controllers/sessionController");
 const logController = require("../controllers/logsController");
 const aiController = require("../controllers/aiController");
+const userController = require("../controllers/userController");
 
 /**
  * @swagger
@@ -31,6 +32,8 @@ const aiController = require("../controllers/aiController");
  *     description: Histórico de execuções de exercícios
  *   - name: AI
  *     description: Feedbacks inteligentes gerados pelo Gemini
+ *   - name: Users
+ *     description: Perfil e conta do usuario logado
  */
 
 // ─── AUTH (público) ────────────────────────────────────────────
@@ -60,7 +63,12 @@ const aiController = require("../controllers/aiController");
  *       400:
  *         description: Email já existe ou dados incorretos
  */
-router.post("/auth/register", rateLimiter, validateRequest(authSchemas.registerSchema), authController.register);
+router.post(
+  "/auth/register",
+  rateLimiter,
+  validateRequest(authSchemas.registerSchema),
+  authController.register,
+);
 
 /**
  * @swagger
@@ -86,7 +94,12 @@ router.post("/auth/register", rateLimiter, validateRequest(authSchemas.registerS
  *       401:
  *         description: Credenciais incorretas
  */
-router.post("/auth/login", rateLimiter, validateRequest(authSchemas.loginSchema), authController.login);
+router.post(
+  "/auth/login",
+  rateLimiter,
+  validateRequest(authSchemas.loginSchema),
+  authController.login,
+);
 
 /**
  * @swagger
@@ -108,7 +121,12 @@ router.post("/auth/login", rateLimiter, validateRequest(authSchemas.loginSchema)
  *       200:
  *         description: Enviado
  */
-router.post("/auth/forgot-password", rateLimiter, validateRequest(authSchemas.forgotPasswordSchema), authController.forgotPassword);
+router.post(
+  "/auth/forgot-password",
+  rateLimiter,
+  validateRequest(authSchemas.forgotPasswordSchema),
+  authController.forgotPassword,
+);
 
 /**
  * @swagger
@@ -132,7 +150,94 @@ router.post("/auth/forgot-password", rateLimiter, validateRequest(authSchemas.fo
  *       200:
  *         description: Senha redefinida localmente
  */
-router.post("/auth/reset-password", rateLimiter, validateRequest(authSchemas.resetPasswordSchema), authController.resetPassword);
+router.post(
+  "/auth/reset-password",
+  rateLimiter,
+  validateRequest(authSchemas.resetPasswordSchema),
+  authController.resetPassword,
+);
+
+// ─── USERS (perfil do usuario logado) ───────────────────────
+/**
+ * @swagger
+ * /users/me:
+ *   get:
+ *     summary: Retorna o perfil do usuario logado
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Perfil do usuario
+ */
+router.get("/users/me", auth, userController.getMe);
+
+/**
+ * @swagger
+ * /users/me:
+ *   put:
+ *     summary: Atualiza nome, email e idade
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *               age:
+ *                 type: number
+ *     responses:
+ *       200:
+ *         description: Perfil atualizado
+ */
+router.put("/users/me", auth, userController.updateMe);
+
+/**
+ * @swagger
+ * /users/me/password:
+ *   put:
+ *     summary: Altera a senha
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [currentPassword, newPassword]
+ *             properties:
+ *               currentPassword:
+ *                 type: string
+ *               newPassword:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Senha atualizada
+ */
+router.put("/users/me/password", auth, userController.updatePassword);
+
+/**
+ * @swagger
+ * /users/me:
+ *   delete:
+ *     summary: Exclui a conta
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Conta excluida
+ */
+router.delete("/users/me", auth, userController.deleteMe);
 
 const catalogSchemas = require("../validators/exerciseCatalogSchemas");
 
@@ -160,7 +265,12 @@ const catalogSchemas = require("../validators/exerciseCatalogSchemas");
  *       200:
  *         description: Lista páginada
  */
-router.get("/catalog", auth, validateRequest(catalogSchemas.getCatalogSchema), exerciseCatalogController.getAll);
+router.get(
+  "/catalog",
+  auth,
+  validateRequest(catalogSchemas.getCatalogSchema),
+  exerciseCatalogController.getAll,
+);
 
 /**
  * @swagger
@@ -188,7 +298,12 @@ router.get("/catalog", auth, validateRequest(catalogSchemas.getCatalogSchema), e
  *       201:
  *         description: Adicionado
  */
-router.post("/catalog", auth, validateRequest(catalogSchemas.createCatalogSchema), exerciseCatalogController.create);
+router.post(
+  "/catalog",
+  auth,
+  validateRequest(catalogSchemas.createCatalogSchema),
+  exerciseCatalogController.create,
+);
 
 /**
  * @swagger
@@ -237,7 +352,12 @@ router.get("/catalog/:id", auth, exerciseCatalogController.getOne);
  *       200:
  *         description: Atualizado
  */
-router.put("/catalog/:id", auth, validateRequest(catalogSchemas.updateCatalogSchema), exerciseCatalogController.update);
+router.put(
+  "/catalog/:id",
+  auth,
+  validateRequest(catalogSchemas.updateCatalogSchema),
+  exerciseCatalogController.update,
+);
 
 /**
  * @swagger
@@ -343,7 +463,12 @@ router.get("/workouts/:id", auth, workoutController.getOne);
  *       201:
  *         description: OK
  */
-router.post("/workouts", auth, validateRequest(workoutSchemas.createWorkoutSchema), workoutController.create);
+router.post(
+  "/workouts",
+  auth,
+  validateRequest(workoutSchemas.createWorkoutSchema),
+  workoutController.create,
+);
 
 /**
  * @swagger
@@ -374,7 +499,12 @@ router.post("/workouts", auth, validateRequest(workoutSchemas.createWorkoutSchem
  *       200:
  *         description: Updated
  */
-router.put("/workouts/:id", auth, validateRequest(workoutSchemas.updateWorkoutSchema), workoutController.update);
+router.put(
+  "/workouts/:id",
+  auth,
+  validateRequest(workoutSchemas.updateWorkoutSchema),
+  workoutController.update,
+);
 
 /**
  * @swagger
@@ -427,7 +557,12 @@ router.delete("/workouts/:id", auth, workoutController.remove);
  *       200:
  *         description: OK Reordena
  */
-router.patch("/workouts/:workoutId/exercises/reorder", auth, validateRequest(workoutExerciseSchemas.reorderWorkoutExerciseSchema), workoutExerciseController.reorder);
+router.patch(
+  "/workouts/:workoutId/exercises/reorder",
+  auth,
+  validateRequest(workoutExerciseSchemas.reorderWorkoutExerciseSchema),
+  workoutExerciseController.reorder,
+);
 
 /**
  * @swagger
@@ -447,7 +582,11 @@ router.patch("/workouts/:workoutId/exercises/reorder", auth, validateRequest(wor
  *       200:
  *         description: Array of Workout Exercises with populated Catalog details
  */
-router.get("/workouts/:workoutId/exercises", auth, workoutExerciseController.getAll);
+router.get(
+  "/workouts/:workoutId/exercises",
+  auth,
+  workoutExerciseController.getAll,
+);
 
 /**
  * @swagger
@@ -472,7 +611,11 @@ router.get("/workouts/:workoutId/exercises", auth, workoutExerciseController.get
  *       200:
  *         description: Return ONE
  */
-router.get("/workouts/:workoutId/exercises/:id", auth, workoutExerciseController.getOne);
+router.get(
+  "/workouts/:workoutId/exercises/:id",
+  auth,
+  workoutExerciseController.getOne,
+);
 
 /**
  * @swagger
@@ -508,7 +651,12 @@ router.get("/workouts/:workoutId/exercises/:id", auth, workoutExerciseController
  *       201:
  *         description: Added
  */
-router.post("/workouts/:workoutId/exercises", auth, validateRequest(workoutExerciseSchemas.createWorkoutExerciseSchema), workoutExerciseController.create);
+router.post(
+  "/workouts/:workoutId/exercises",
+  auth,
+  validateRequest(workoutExerciseSchemas.createWorkoutExerciseSchema),
+  workoutExerciseController.create,
+);
 
 /**
  * @swagger
@@ -546,7 +694,12 @@ router.post("/workouts/:workoutId/exercises", auth, validateRequest(workoutExerc
  *       200:
  *         description: Success update
  */
-router.put("/workouts/:workoutId/exercises/:id", auth, validateRequest(workoutExerciseSchemas.updateWorkoutExerciseSchema), workoutExerciseController.update);
+router.put(
+  "/workouts/:workoutId/exercises/:id",
+  auth,
+  validateRequest(workoutExerciseSchemas.updateWorkoutExerciseSchema),
+  workoutExerciseController.update,
+);
 
 /**
  * @swagger
@@ -571,7 +724,11 @@ router.put("/workouts/:workoutId/exercises/:id", auth, validateRequest(workoutEx
  *       200:
  *         description: Gone
  */
-router.delete("/workouts/:workoutId/exercises/:id", auth, workoutExerciseController.remove);
+router.delete(
+  "/workouts/:workoutId/exercises/:id",
+  auth,
+  workoutExerciseController.remove,
+);
 
 // ─── SESSIONS ─────────────────────────────────────────────────
 /**
@@ -591,7 +748,12 @@ router.delete("/workouts/:workoutId/exercises/:id", auth, workoutExerciseControl
  *       200:
  *         description: Success
  */
-router.get("/sessions", auth, validateRequest(sessionSchemas.getSessionsSchema), sessionController.getAll);
+router.get(
+  "/sessions",
+  auth,
+  validateRequest(sessionSchemas.getSessionsSchema),
+  sessionController.getAll,
+);
 
 /**
  * @swagger
@@ -635,7 +797,12 @@ router.get("/sessions/:id", auth, sessionController.getOne);
  *       201:
  *         description: Sessao foi aberta status = 'in_progress'
  */
-router.post("/sessions", auth, validateRequest(sessionSchemas.createSessionSchema), sessionController.create);
+router.post(
+  "/sessions",
+  auth,
+  validateRequest(sessionSchemas.createSessionSchema),
+  sessionController.create,
+);
 
 /**
  * @swagger
@@ -670,13 +837,18 @@ router.post("/sessions", auth, validateRequest(sessionSchemas.createSessionSchem
  *       200:
  *         description: Sessão salva (fim de treino)
  */
-router.put("/sessions/:id", auth, validateRequest(sessionSchemas.updateSessionSchema), sessionController.update);
+router.put(
+  "/sessions/:id",
+  auth,
+  validateRequest(sessionSchemas.updateSessionSchema),
+  sessionController.update,
+);
 
 /**
  * @swagger
  * /sessions/{id}:
  *   delete:
- *     summary: Abortar sessão (lixeira limpa do banco) 
+ *     summary: Abortar sessão (lixeira limpa do banco)
  *     tags: [Sessions]
  *     security:
  *       - bearerAuth: []
@@ -745,13 +917,18 @@ router.get("/sessions/:sessionId/logs", auth, logController.getAll);
  *       201:
  *         description: Set logged!
  */
-router.post("/sessions/:sessionId/logs", auth, validateRequest(logSchemas.createLogSchema), logController.create);
+router.post(
+  "/sessions/:sessionId/logs",
+  auth,
+  validateRequest(logSchemas.createLogSchema),
+  logController.create,
+);
 
 /**
  * @swagger
  * /sessions/{sessionId}/logs/{id}:
  *   put:
- *     summary: Edita 1 info da linha clicada log caso erro 
+ *     summary: Edita 1 info da linha clicada log caso erro
  *     tags: [Logs]
  *     security:
  *       - bearerAuth: []
@@ -781,7 +958,12 @@ router.post("/sessions/:sessionId/logs", auth, validateRequest(logSchemas.create
  *       200:
  *         description: Edit valid
  */
-router.put("/sessions/:sessionId/logs/:id", auth, validateRequest(logSchemas.updateLogSchema), logController.update);
+router.put(
+  "/sessions/:sessionId/logs/:id",
+  auth,
+  validateRequest(logSchemas.updateLogSchema),
+  logController.update,
+);
 
 /**
  * @swagger
@@ -815,7 +997,7 @@ const aiSchemas = require("../validators/aiSchemas");
  * @swagger
  * /ai/analyze/{sessionId}:
  *   post:
- *     summary: Avaliaçao geral resumida da AI pos-secao finalizada motivando resultados usando Gemini 
+ *     summary: Avaliaçao geral resumida da AI pos-secao finalizada motivando resultados usando Gemini
  *     tags: [AI]
  *     security:
  *       - bearerAuth: []
@@ -829,13 +1011,18 @@ const aiSchemas = require("../validators/aiSchemas");
  *       200:
  *         description: Feedback text string prompt object result
  */
-router.post("/ai/analyze/:sessionId", auth, validateRequest(aiSchemas.analyzeSessionSchema), aiController.analyzeSession);
+router.post(
+  "/ai/analyze/:sessionId",
+  auth,
+  validateRequest(aiSchemas.analyzeSessionSchema),
+  aiController.analyzeSession,
+);
 
 /**
  * @swagger
  * /ai/progress/{catalogId}:
  *   get:
- *     summary: Avalia chart com Gemini (Apto progressao overload alert?) usando os historicos 
+ *     summary: Avalia chart com Gemini (Apto progressao overload alert?) usando os historicos
  *     tags: [AI]
  *     security:
  *       - bearerAuth: []
@@ -849,6 +1036,25 @@ router.post("/ai/analyze/:sessionId", auth, validateRequest(aiSchemas.analyzeSes
  *       200:
  *         description: Message with string content overload analysis check up OK
  */
-router.get("/ai/progress/:catalogId", auth, validateRequest(aiSchemas.analyzeProgressSchema), aiController.analyzeProgress);
+router.get(
+  "/ai/progress/:catalogId",
+  auth,
+  validateRequest(aiSchemas.analyzeProgressSchema),
+  aiController.analyzeProgress,
+);
+
+/**
+ * @swagger
+ * /ai/weekly-coach:
+ *   get:
+ *     summary: Relatório semanal do coach — análise das últimas 4 semanas
+ *     tags: [AI]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Relatório completo com stats e análise do Gemini
+ */
+router.get("/ai/weekly-coach", auth, aiController.weeklyCoach);
 
 module.exports = router;

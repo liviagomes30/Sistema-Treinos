@@ -11,22 +11,22 @@
 :root {
   /* Primary */
   --bg: #192126;
-  --accent: #BBF246;
+  --accent: #bbf246;
   --accent-dim: rgba(187, 242, 70, 0.12);
   --accent-dim2: rgba(187, 242, 70, 0.22);
 
   /* Secondary */
-  --text2: #8B8F92;
-  --text3: #5E6468;
+  --text2: #8b8f92;
+  --text3: #5e6468;
   --surface: #384046;
   --surface2: #2d3439;
-  --purple: #A48AED;
+  --purple: #a48aed;
   --purple-dim: rgba(164, 138, 237, 0.12);
-  --red: #ED4747;
+  --red: #ed4747;
   --red-dim: rgba(237, 71, 71, 0.12);
-  --yellow: #FCC46F;
+  --yellow: #fcc46f;
   --yellow-dim: rgba(252, 196, 111, 0.12);
-  --blue: #95CCE3;
+  --blue: #95cce3;
   --blue-dim: rgba(149, 204, 227, 0.12);
 
   /* Derived */
@@ -570,6 +570,8 @@ label {
   display: flex;
   align-items: flex-end;
   justify-content: center;
+  padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
+  box-sizing: border-box;
   z-index: 200;
   backdrop-filter: blur(4px);
 }
@@ -581,7 +583,7 @@ label {
   padding: 28px 24px;
   width: 100%;
   max-width: 480px;
-  max-height: 90vh;
+  max-height: calc(90vh - env(safe-area-inset-bottom));
   overflow-y: auto;
 }
 
