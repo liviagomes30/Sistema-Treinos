@@ -52,13 +52,6 @@ class SessionRepository {
   async checkWorkoutExists(workoutId, userId) {
     return Workout.exists({ _id: workoutId, user_id: userId });
   }
-
-  async cancelInProgressSessions(userId) {
-    return WorkoutSession.updateMany(
-      { user_id: userId, status: "in_progress" },
-      { status: "cancelled" }
-    );
-  }
 }
 
 module.exports = new SessionRepository();

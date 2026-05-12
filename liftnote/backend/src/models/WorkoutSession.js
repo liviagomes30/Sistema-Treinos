@@ -18,24 +18,14 @@ const workoutSessionSchema = new mongoose.Schema(
       type: Date,
       default: Date.now,
     },
-    finished_at: {
-      type: Date,
-      default: null,
-    },
-    duration_seconds: {
-      type: Number,
-      min: [0, "Duração não pode ser negativa"],
-      default: null,
-    },
     status: {
       type: String,
       enum: {
-        values: ["in_progress", "completed", "cancelled"],
+        values: ["completed"],
         message: "Status inválido",
       },
-      default: "in_progress",
+      default: "completed",
     },
-    // Campo preenchido pela IA após a sessão ser concluída
     ai_summary: {
       type: String,
       default: null,
@@ -50,16 +40,6 @@ const workoutSessionSchema = new mongoose.Schema(
   },
 );
 
-// Virtual: calcula duração automaticamente se não foi salva explicitamente
-workoutSessionSchema.virtual("duration_formatted").get(function () {
-  const secs = this.duration_seconds;
-  if (!secs) return null;
-  const m = Math.floor(secs / 60);
-  const s = secs % 60;
-  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-});
-
-// Virtual: logs desta sessão
 workoutSessionSchema.virtual("logs", {
   ref: "ExerciseLog",
   localField: "_id",
@@ -67,18 +47,7 @@ workoutSessionSchema.virtual("logs", {
   options: { sort: { logged_at: 1 } },
 });
 
-// Ao finalizar, calcula a duração automaticamente
-workoutSessionSchema.pre("save", async function () {
-  if (this.isModified("finished_at") && this.finished_at && this.started_at) {
-    this.duration_seconds = Math.round(
-      (this.finished_at - this.started_at) / 1000,
-    );
-  }
-});
-
-// Índices para as queries mais comuns
-workoutSessionSchema.index({ user_id: 1, started_at: -1 }); // histórico do usuário
-workoutSessionSchema.index({ user_id: 1, workout_id: 1, started_at: -1 }); // histórico por treino
-workoutSessionSchema.index({ status: 1, user_id: 1 }); // sessão em andamento
+workoutSessionSchema.index({ user_id: 1, started_at: -1 });
+workoutSessionSchema.index({ user_id: 1, workout_id: 1, started_at: -1 });
 
 module.exports = mongoose.model("WorkoutSession", workoutSessionSchema);

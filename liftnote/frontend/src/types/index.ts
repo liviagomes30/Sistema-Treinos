@@ -71,9 +71,6 @@ export interface Session {
   workout_id: string;
   workoutName?: string;
   started_at: string;
-  ended_at?: string;
-  duration_seconds?: number;
-  totalVolume?: number;
-  status: 'in_progress' | 'completed' | 'cancelled';
+  status: 'completed';
   exercises?: SessionExercise[];
 }

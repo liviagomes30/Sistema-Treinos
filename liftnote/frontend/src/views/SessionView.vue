@@ -2,7 +2,7 @@
   <div class="active-session-page">
     <!-- Topbar -->
     <div class="topbar-session">
-      <div class="icon-btn" @click="cancelSession">
+      <div class="icon-btn" @click="discardSession">
         <svg
           width="22"
           height="22"
@@ -18,15 +18,7 @@
         </svg>
       </div>
 
-      <!-- Timer clicável centralizado -->
-      <div
-        class="timer-pill"
-        @click="toggleTimer"
-        :class="{ paused: !timerRunning }"
-      >
-        <span class="timer-dot" :class="{ running: timerRunning }"></span>
-        <span class="timer-display">{{ timerDisplay }}</span>
-      </div>
+      <span class="topbar-title">{{ activeSession?.workoutName || "Treino Ativo" }}</span>
 
       <div class="icon-btn" @click="finishSession" style="color: var(--accent)">
         <svg
@@ -54,9 +46,6 @@
 
     <!-- Info rápida da sessão -->
     <div class="session-meta-row">
-      <span class="session-workout-name">{{
-        activeSession?.workout?.name || "Treino Ativo"
-      }}</span>
       <span class="session-progress-label"
         >{{ completedExercises }}/{{
           activeSession?.exercises?.length || 0
@@ -312,7 +301,7 @@
       </button>
     </div>
 
-    <!-- Modais -->
+    <!-- Modal: Finalizar -->
     <ConfirmModal
       v-model:isOpen="showFinishModal"
       title="Finalizar Treino"
@@ -320,19 +309,21 @@
       confirmText="Finalizar"
       @confirm="confirmFinishSession"
     />
+
+    <!-- Modal: Descartar -->
     <ConfirmModal
-      v-model:isOpen="showCancelModal"
-      title="Cancelar Treino"
-      message="Tem certeza que deseja cancelar? O progresso atual será perdido."
-      confirmText="Cancelar Treino"
+      v-model:isOpen="showDiscardModal"
+      title="Descartar Treino"
+      message="Tem certeza que deseja descartar? Nenhum dado será salvo."
+      confirmText="Descartar"
       confirmClass="btn-danger"
-      @confirm="confirmCancelSession"
+      @confirm="confirmDiscardSession"
     />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from "vue";
+import { ref, computed, watch, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { useSessionStore } from "../store/sessionStore";
 import ConfirmModal from "../components/ui/ConfirmModal.vue";
@@ -347,12 +338,8 @@ const currentWeightInput = ref(0);
 const currentRepsInput = ref(0);
 const lastSessionWeight = ref<number | null>(null);
 const lastSessionReps = ref<number | null>(null);
-const timerDisplay = ref("00:00");
-const timerRunning = ref(false);
-const secondsElapsed = ref(0);
 const showFinishModal = ref(false);
-const showCancelModal = ref(false);
-let timerInterval: ReturnType<typeof setInterval> | null = null;
+const showDiscardModal = ref(false);
 
 const currentExercise = computed(
   () => activeSession.value?.exercises?.[activeExerciseIdx.value],
@@ -378,34 +365,9 @@ onMounted(() => {
     router.push("/workouts");
     return;
   }
-  startTimer();
   loadSetInputs();
   fetchLastSessionLog();
 });
-
-onUnmounted(() => {
-  stopTimer();
-});
-
-function startTimer() {
-  timerRunning.value = true;
-  timerInterval = setInterval(() => {
-    secondsElapsed.value++;
-    const mins = Math.floor(secondsElapsed.value / 60);
-    const secs = secondsElapsed.value % 60;
-    timerDisplay.value = `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
-  }, 1000);
-}
-
-function stopTimer() {
-  timerRunning.value = false;
-  if (timerInterval) clearInterval(timerInterval);
-}
-
-function toggleTimer() {
-  if (timerRunning.value) stopTimer();
-  else startTimer();
-}
 
 function loadSetInputs() {
   const ex = currentExercise.value;
@@ -413,8 +375,8 @@ function loadSetInputs() {
   const sets = getExSets(ex);
   const set = sets[activeSetIdx.value];
   if (set) {
-    currentWeightInput.value = set.weightLogged || ex.weight_kg || 0;
-    currentRepsInput.value = set.repsLogged || ex.reps || 0;
+    currentWeightInput.value = set.weightLogged || (ex as any).weight_kg || 0;
+    currentRepsInput.value = set.repsLogged || (ex as any).reps || 0;
   }
 }
 
@@ -431,7 +393,7 @@ function prevExercise() {
 function nextExercise() {
   if (
     activeSession.value &&
-    activeExerciseIdx.value < activeSession.value.exercises.length - 1
+    activeExerciseIdx.value < activeSession.value.exercises!.length - 1
   ) {
     activeExerciseIdx.value++;
   }
@@ -440,8 +402,9 @@ function nextExercise() {
 function finishSession() {
   showFinishModal.value = true;
 }
-function cancelSession() {
-  showCancelModal.value = true;
+
+function discardSession() {
+  showDiscardModal.value = true;
 }
 
 async function confirmFinishSession() {
@@ -449,8 +412,8 @@ async function confirmFinishSession() {
   router.push("/history");
 }
 
-async function confirmCancelSession() {
-  await sessionStore.cancelSession();
+function confirmDiscardSession() {
+  sessionStore.discardSession();
   router.push("/workouts");
 }
 
@@ -498,36 +461,23 @@ function getExSets(exercise: any): any[] {
   return sets;
 }
 
-async function markSetDone(exerciseId: string, setIndex: number) {
-  const exercise = activeSession.value?.exercises.find(
-    (ex: any) => ex.exercise_id === exerciseId,
+function markSetDone(exerciseId: string, setIndex: number) {
+  const exercise = (activeSession.value?.exercises as any[])?.find(
+    (ex) => ex.exercise_id === exerciseId,
   );
   if (!exercise) return;
 
-  const setNum = setIndex + 1;
-  const existingLogIdx = exercise.logs.findIndex(
-    (l: any) => l.set_number === setNum,
-  );
-
   const logData = {
-    set_number: setNum,
+    set_number: setIndex + 1,
     reps_done: currentRepsInput.value || exercise.reps || 10,
     weight_used_kg: currentWeightInput.value || exercise.weight_kg || 0,
   };
 
-  try {
-    await sessionStore.logSet(exerciseId, logData);
-    if (existingLogIdx > -1) {
-      exercise.logs[existingLogIdx] = logData;
-    } else {
-      exercise.logs.push(logData);
-    }
-    if (activeSetIdx.value < exercise.series - 1) {
-      activeSetIdx.value++;
-      loadSetInputs();
-    }
-  } catch (err) {
-    console.error(err);
+  sessionStore.logSet(exerciseId, logData);
+
+  if (activeSetIdx.value < exercise.series - 1) {
+    activeSetIdx.value++;
+    loadSetInputs();
   }
 }
 </script>
@@ -548,6 +498,12 @@ async function markSetDone(exerciseId: string, setIndex: number) {
   align-items: center;
   margin-bottom: 12px;
 }
+.topbar-title {
+  font-size: 15px;
+  font-weight: 700;
+  flex: 1;
+  text-align: center;
+}
 .icon-btn {
   cursor: pointer;
   color: var(--text);
@@ -561,50 +517,6 @@ async function markSetDone(exerciseId: string, setIndex: number) {
 }
 .icon-btn:hover {
   background: var(--surface);
-}
-
-/* Timer pill */
-.timer-pill {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: var(--surface);
-  border: 1.5px solid var(--border);
-  border-radius: 24px;
-  padding: 8px 18px;
-  cursor: pointer;
-  transition: border-color 0.2s;
-}
-.timer-pill:hover {
-  border-color: var(--accent);
-}
-.timer-pill.paused {
-  border-color: var(--orange);
-}
-.timer-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--text3);
-  transition: background 0.3s;
-}
-.timer-dot.running {
-  background: var(--accent);
-  animation: pulse-dot 1.5s ease-in-out infinite;
-}
-@keyframes pulse-dot {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.3;
-  }
-}
-.timer-display {
-  font-family: var(--font-mono);
-  font-size: 18px;
-  font-weight: 700;
 }
 
 /* Global progress bar (topo) */
@@ -625,13 +537,9 @@ async function markSetDone(exerciseId: string, setIndex: number) {
 /* Session meta */
 .session-meta-row {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
   margin-bottom: 20px;
-}
-.session-workout-name {
-  font-size: 15px;
-  font-weight: 700;
 }
 .session-progress-label {
   font-size: 12px;

@@ -28,10 +28,6 @@ class LogService {
 
   async create(sessionId, userId, data) {
     const session = await this._getSession(sessionId, userId);
-    
-    if (session.status !== "in_progress") {
-      throw new AppError("Sessão não está em andamento", 400);
-    }
 
     const { workout_exercise_id, set_number, reps_done, weight_used_kg, notes } = data;
 

@@ -3,23 +3,17 @@ const AppError = require("../utils/AppError");
 
 class SessionService {
   async getAll(userId, query) {
-    const { workout_id, status, limit, page } = query;
+    const { workout_id, limit, page } = query;
     const filter = { user_id: userId };
-    
+
     if (workout_id) filter.workout_id = workout_id;
-    if (status) filter.status = status;
 
     const skip = (page - 1) * limit;
 
     const sessions = await repository.find(filter, skip, limit);
     const total = await repository.countDocuments(filter);
 
-    return {
-      data: sessions,
-      total,
-      page,
-      limit,
-    };
+    return { data: sessions, total, page, limit };
   }
 
   async getOne(id, userId) {
@@ -38,29 +32,21 @@ class SessionService {
       throw new AppError("Treino não encontrado", 404);
     }
 
-    await repository.cancelInProgressSessions(userId);
-
     return repository.create({
       user_id: userId,
       workout_id,
-      started_at: new Date(),
     });
   }
 
   async update(id, userId, data) {
-    const { status, ai_summary } = data;
+    const { ai_summary } = data;
 
     const session = await repository.findOne(id, userId);
     if (!session) {
       throw new AppError("Sessão não encontrada", 404);
     }
 
-    if (status) session.status = status;
-    if (ai_summary) session.ai_summary = ai_summary;
-
-    if (status === "completed" && !session.finished_at) {
-      session.finished_at = new Date();
-    }
+    if (ai_summary !== undefined) session.ai_summary = ai_summary;
 
     return repository.save(session);
   }

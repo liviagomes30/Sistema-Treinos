@@ -32,7 +32,7 @@
     <!-- Stat Cards -->
     <div class="stat-grid-home mb">
       <div class="stat-card-home card-accent">
-        <div class="stat-val-home">{{ appStore.sessions.length }}</div>
+        <div class="stat-val-home">{{ sessionsArray.length }}</div>
         <div class="stat-label-home">Treinos feitos</div>
         <div class="stat-icon-home">
           <svg
@@ -152,13 +152,8 @@
             {{ getWorkoutName(lastSession.workout_id) }}
           </div>
         </div>
-        <div
-          class="last-session-badge"
-          :class="
-            lastSession.status === 'completed' ? 'badge-ok' : 'badge-cancelled'
-          "
-        >
-          {{ lastSession.status === "completed" ? "✓ Completo" : "Cancelado" }}
+        <div class="last-session-badge badge-ok">
+          ✓ Completo
         </div>
       </div>
       <div class="last-session-meta">
@@ -218,7 +213,7 @@
 
     <!-- Estado vazio -->
     <div
-      v-if="!appStore.sessions.length && !appStore.workouts?.length"
+      v-if="!sessionsArray.length && !appStore.workouts?.length"
       class="empty-home"
     >
       <div class="empty-icon">🏋️</div>
@@ -261,9 +256,10 @@ const todayFormatted = computed(() =>
   }),
 );
 
-const sessionsArray = computed(() =>
-  Array.isArray(appStore.sessions) ? appStore.sessions : [],
-);
+const sessionsArray = computed(() => {
+  const all = Array.isArray(appStore.sessions) ? appStore.sessions : [];
+  return all.filter((s) => s.status !== 'cancelled');
+});
 
 const weekSessions = computed(() => {
   const now = new Date();
