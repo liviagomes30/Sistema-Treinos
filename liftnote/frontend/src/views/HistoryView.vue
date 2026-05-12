@@ -174,12 +174,6 @@
           ✕
         </button>
       </div>
-      <select v-model="historyFilter" class="filter-select">
-        <option value="">Todos</option>
-        <option value="completed">Completo</option>
-        <option value="in_progress">Em andamento</option>
-        <option value="cancelled">Cancelado</option>
-      </select>
     </div>
 
     <!-- ── Lista de sessões ────────────────────────────────────── -->
@@ -306,7 +300,6 @@ const pickerYear = ref(today.getFullYear());
 
 // ── Filtros de busca ───────────────────────────────────────────
 const historySearch = ref("");
-const historyFilter = ref("");
 const showDeleteModal = ref(false);
 const sessionToDelete = ref<string | null>(null);
 
@@ -388,9 +381,10 @@ interface CalendarDay {
   sessionCount: number;
 }
 
-const sessionsArray = computed(() =>
-  Array.isArray(appStore.sessions) ? (appStore.sessions as Session[]) : [],
-);
+const sessionsArray = computed(() => {
+  const all = Array.isArray(appStore.sessions) ? (appStore.sessions as Session[]) : [];
+  return all.filter((s) => s.status !== 'cancelled');
+});
 
 const calendarDays = computed((): CalendarDay[] => {
   const days: CalendarDay[] = [];
@@ -510,9 +504,6 @@ const filteredHistory = computed(() => {
     );
   });
 
-  if (historyFilter.value) {
-    list = list.filter((s) => s.status === historyFilter.value);
-  }
   if (historySearch.value.trim()) {
     const q = historySearch.value.toLowerCase();
     list = list.filter((s) =>
