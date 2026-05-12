@@ -1,38 +1,37 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import type { Session, Workout } from '../types'
+import type { Workout } from '../types'
 import { sessionService } from '../services/sessionService'
 import { workoutService } from '../services/workoutService'
 
 export const useSessionStore = defineStore('session', () => {
-  const activeSession = ref<Session | null>(null)
+  const activeSession = ref<any | null>(null)
+  const currentSessionId = ref<string | null>(null)
   const isLoading = ref(false)
+  const isSavingSet = ref(false)
   const error = ref<string | null>(null)
 
   async function startSession(workout: Workout) {
     isLoading.value = true
     error.value = null
+    currentSessionId.value = null
     try {
       const workoutExercises = await workoutService.getExercises(workout._id)
 
       activeSession.value = {
-        _id: '',
         workout_id: workout._id,
         workoutName: workout.name,
-        started_at: new Date().toISOString(),
-        status: 'completed',
-        exercises: workoutExercises.map((we) => ({
+        exercises: workoutExercises.map((we: any) => ({
           exercise_id: we._id,
-          exercise_catalog_id: (we as any).exercise_catalog_id?._id,
-          name: (we as any).exercise_catalog_id?.name || (we as any).custom_name || we.name || 'Exercício',
-          muscle_group: (we as any).exercise_catalog_id?.muscle_group || we.muscle_group,
+          name: we.exercise_catalog_id?.name || we.custom_name || we.name || 'Exercício',
+          muscle_group: we.exercise_catalog_id?.muscle_group || we.muscle_group,
           series: we.series,
           reps: we.reps,
           weight_kg: we.weight_kg || 0,
           set_type: we.set_type,
           rest_seconds: we.rest_seconds,
           logs: [],
-        })) as any,
+        })),
       }
     } catch (err: any) {
       error.value = 'Falha ao carregar exercícios do treino'
@@ -42,61 +41,43 @@ export const useSessionStore = defineStore('session', () => {
     }
   }
 
-  function logSet(exerciseId: string, logData: any) {
+  async function logSet(exerciseId: string, logData: { set_number: number; reps_done: number; weight_used_kg: number }) {
     if (!activeSession.value) return
 
-    const exercise = (activeSession.value.exercises as any[])?.find(
-      (ex) => ex.exercise_id === exerciseId,
-    )
-    if (!exercise) return
-
-    const existingIdx = exercise.logs.findIndex(
-      (l: any) => l.set_number === logData.set_number,
-    )
-
-    if (existingIdx > -1) {
-      exercise.logs[existingIdx] = logData
-    } else {
-      exercise.logs.push(logData)
-    }
-  }
-
-  async function finishSession() {
-    if (!activeSession.value) return
-    isLoading.value = true
-    error.value = null
+    isSavingSet.value = true
     try {
-      const session = await sessionService.create({
-        workout_id: activeSession.value.workout_id,
+      if (!currentSessionId.value) {
+        const session = await sessionService.create({ workout_id: activeSession.value.workout_id })
+        currentSessionId.value = session._id
+      }
+
+      await sessionService.addLog(currentSessionId.value, {
+        workout_exercise_id: exerciseId,
+        ...logData,
       })
 
-      const exercises = (activeSession.value.exercises as any[]) || []
-
-      const logPromises = exercises.flatMap((ex) =>
-        (ex.logs as any[]).map((log) =>
-          sessionService.addLog(session._id, {
-            workout_exercise_id: ex.exercise_id,
-            set_number: log.set_number,
-            reps_done: log.reps_done,
-            weight_used_kg: log.weight_used_kg,
-          }),
-        ),
-      )
-
-      await Promise.all(logPromises)
-
-      activeSession.value = null
+      const exercise = activeSession.value.exercises.find((ex: any) => ex.exercise_id === exerciseId)
+      if (exercise) {
+        const existingIdx = exercise.logs.findIndex((l: any) => l.set_number === logData.set_number)
+        if (existingIdx > -1) {
+          exercise.logs[existingIdx] = logData
+        } else {
+          exercise.logs.push(logData)
+        }
+      }
     } catch (err: any) {
-      error.value = 'Erro ao salvar sessão'
+      error.value = 'Erro ao salvar série'
       console.error(err)
+      throw err
     } finally {
-      isLoading.value = false
+      isSavingSet.value = false
     }
   }
 
-  function discardSession() {
+  function resetSession() {
     activeSession.value = null
+    currentSessionId.value = null
   }
 
-  return { activeSession, isLoading, error, startSession, logSet, finishSession, discardSession }
+  return { activeSession, currentSessionId, isLoading, isSavingSet, error, startSession, logSet, resetSession }
 })

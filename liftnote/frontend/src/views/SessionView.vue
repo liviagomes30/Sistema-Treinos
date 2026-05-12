@@ -2,7 +2,7 @@
   <div class="active-session-page">
     <!-- Topbar -->
     <div class="topbar-session">
-      <div class="icon-btn" @click="discardSession">
+      <div class="icon-btn" @click="goBack">
         <svg
           width="22"
           height="22"
@@ -13,73 +13,42 @@
           stroke-linecap="round"
           stroke-linejoin="round"
         >
-          <line x1="18" y1="6" x2="6" y2="18"></line>
-          <line x1="6" y1="6" x2="18" y2="18"></line>
+          <polyline points="15 18 9 12 15 6"></polyline>
         </svg>
       </div>
 
-      <span class="topbar-title">{{ activeSession?.workoutName || "Treino Ativo" }}</span>
+      <span class="topbar-title">{{ activeSession?.workoutName || "Treino" }}</span>
 
-      <div class="icon-btn" @click="finishSession" style="color: var(--accent)">
-        <svg
-          width="22"
-          height="22"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2.5"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <polyline points="20 6 9 17 4 12"></polyline>
-        </svg>
+      <div class="save-indicator" :class="{ saving: sessionStore.isSavingSet }">
+        <template v-if="sessionStore.isSavingSet">
+          <span class="spinner"></span>
+        </template>
+        <template v-else-if="totalLogged > 0">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+          <span>{{ totalLogged }} série{{ totalLogged !== 1 ? 's' : '' }}</span>
+        </template>
       </div>
     </div>
 
-    <!-- Barra de progresso global (topo, fina) -->
+    <!-- Barra de progresso global -->
     <div class="global-progress-bar">
-      <div
-        class="global-progress-fill"
-        :style="{ width: progressPercentage + '%' }"
-      ></div>
-    </div>
-
-    <!-- Info rápida da sessão -->
-    <div class="session-meta-row">
-      <span class="session-progress-label"
-        >{{ completedExercises }}/{{
-          activeSession?.exercises?.length || 0
-        }}
-        exercícios</span
-      >
+      <div class="global-progress-fill" :style="{ width: progressPercentage + '%' }"></div>
     </div>
 
     <div v-if="currentExercise" class="active-exercise-container">
       <!-- Nav entre exercícios -->
       <div class="exercise-nav">
-        <button
-          class="nav-btn"
-          @click="prevExercise"
-          :disabled="activeExerciseIdx === 0"
-        >
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
+        <button class="nav-btn" @click="prevExercise" :disabled="activeExerciseIdx === 0">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="15 18 9 12 15 6"></polyline>
           </svg>
         </button>
 
         <div class="exercise-title-block">
           <div class="exercise-number">
-            Exercício {{ activeExerciseIdx + 1 }} de
-            {{ activeSession?.exercises?.length || 0 }}
+            {{ activeExerciseIdx + 1 }} / {{ activeSession?.exercises?.length || 0 }}
           </div>
           <div class="exercise-name">{{ currentExercise.name }}</div>
           <div class="exercise-muscle" v-if="currentExercise.muscle_group">
@@ -90,27 +59,15 @@
         <button
           class="nav-btn"
           @click="nextExercise"
-          :disabled="
-            !activeSession ||
-            activeExerciseIdx >= activeSession.exercises.length - 1
-          "
+          :disabled="!activeSession || activeExerciseIdx >= activeSession.exercises.length - 1"
         >
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="9 18 15 12 9 6"></polyline>
           </svg>
         </button>
       </div>
 
-      <!-- Indicador de exercícios (bolinhas) -->
+      <!-- Indicadores de exercícios -->
       <div class="exercise-dots">
         <div
           v-for="(ex, i) in activeSession?.exercises"
@@ -118,83 +75,39 @@
           class="ex-dot"
           :class="{
             'ex-dot-active': i === activeExerciseIdx,
-            'ex-dot-done': exerciseComplete(ex),
+            'ex-dot-done': hasAnyLog(ex),
           }"
           @click="activeExerciseIdx = i"
         ></div>
       </div>
 
-      <!-- Séries - pílulas -->
-      <div class="sets-row">
-        <div
-          v-for="(set, i) in currentSets"
-          :key="i"
-          class="set-pill"
-          :class="{ active: i === activeSetIdx, completed: set.done }"
-          @click="
-            activeSetIdx = i;
-            loadSetInputs();
-          "
-        >
-          <span v-if="set.done" class="set-pill-check">✓</span>
-          <span v-else>S{{ i + 1 }}</span>
-        </div>
-      </div>
-
-      <!-- Editor da série atual -->
+      <!-- Editor da série -->
       <div class="current-set-editor card">
         <div class="set-header">
-          <div>
-            <h3 style="margin: 0; font-size: 18px">
-              Série {{ activeSetIdx + 1 }}
-            </h3>
-            <div
-              v-if="lastSessionWeight !== null"
-              style="font-size: 12px; color: var(--text2); margin-top: 2px"
-            >
-              Último:
-              <strong style="color: var(--text)"
-                >{{ lastSessionWeight }}kg × {{ lastSessionReps }}</strong
-              >
+          <div class="set-header-left">
+            <div class="set-hint">
+              Sugestão: <strong>{{ currentExercise.series }}x{{ currentExercise.reps }}</strong>
+              <span v-if="currentExercise.weight_kg"> · {{ currentExercise.weight_kg }}kg</span>
             </div>
           </div>
-          <span class="target-badge">
-            Alvo: {{ currentSets[activeSetIdx]?.targetReps }} reps ·
-            {{ currentSets[activeSetIdx]?.targetWeight }}kg
-          </span>
+          <div class="series-logged-count">
+            {{ currentExercise.logs?.length || 0 }} registrada{{ currentExercise.logs?.length !== 1 ? 's' : '' }}
+          </div>
         </div>
 
         <div class="set-inputs">
           <div class="input-group">
             <label>Peso (kg)</label>
             <div class="input-stepper">
-              <button
-                class="stepper-btn"
-                @click="
-                  currentWeightInput = Math.max(0, currentWeightInput - 2.5)
-                "
-              >
-                −
-              </button>
-              <input
-                type="number"
-                v-model.number="currentWeightInput"
-                min="0"
-              />
-              <button class="stepper-btn" @click="currentWeightInput += 2.5">
-                +
-              </button>
+              <button class="stepper-btn" @click="currentWeightInput = Math.max(0, currentWeightInput - 2.5)">−</button>
+              <input type="number" v-model.number="currentWeightInput" min="0" />
+              <button class="stepper-btn" @click="currentWeightInput += 2.5">+</button>
             </div>
           </div>
           <div class="input-group">
             <label>Reps</label>
             <div class="input-stepper">
-              <button
-                class="stepper-btn"
-                @click="currentRepsInput = Math.max(0, currentRepsInput - 1)"
-              >
-                −
-              </button>
+              <button class="stepper-btn" @click="currentRepsInput = Math.max(0, currentRepsInput - 1)">−</button>
               <input type="number" v-model.number="currentRepsInput" min="0" />
               <button class="stepper-btn" @click="currentRepsInput++">+</button>
             </div>
@@ -202,17 +115,35 @@
         </div>
 
         <button
-          class="btn btn-large mt"
-          :class="currentSets[activeSetIdx]?.done ? 'btn-ghost' : 'btn-accent'"
+          class="btn btn-accent btn-large mt"
           style="width: 100%"
-          @click="markSetDone(currentExercise?.exercise_id || '', activeSetIdx)"
+          :disabled="sessionStore.isSavingSet || currentRepsInput <= 0"
+          @click="registerSet"
         >
-          {{
-            currentSets[activeSetIdx]?.done
-              ? "✓ Série Completa"
-              : "Completar Série"
-          }}
+          <template v-if="sessionStore.isSavingSet">
+            <span class="spinner-btn"></span> Salvando...
+          </template>
+          <template v-else>
+            + Registrar Série
+          </template>
         </button>
+      </div>
+
+      <!-- Histórico de séries registradas para este exercício -->
+      <div v-if="currentExercise.logs?.length" class="logged-sets-panel card mt">
+        <div class="logged-sets-header">Séries registradas</div>
+        <div class="logged-sets-list">
+          <div
+            v-for="(log, i) in currentExercise.logs"
+            :key="i"
+            class="logged-set-row"
+          >
+            <span class="log-set-num">S{{ log.set_number }}</span>
+            <span class="log-weight">{{ log.weight_used_kg }}kg</span>
+            <span class="log-reps">× {{ log.reps_done }} reps</span>
+            <span class="log-volume muted">= {{ (log.weight_used_kg * log.reps_done).toFixed(0) }}kg vol</span>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -220,24 +151,17 @@
       Nenhum exercício encontrado nesta sessão.
     </div>
 
-    <!-- Painel de progresso expandido -->
+    <!-- Painel de progresso -->
     <div class="progress-panel card mt">
       <div class="progress-panel-header">
-        <span
-          class="muted"
-          style="
-            font-size: 12px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-          "
-          >Progresso do Treino</span
-        >
-        <span style="font-size: 13px; font-weight: 700; color: var(--accent)"
-          >{{ Math.round(progressPercentage) }}%</span
-        >
+        <span class="muted" style="font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px">
+          Exercícios
+        </span>
+        <span style="font-size: 13px; font-weight: 700; color: var(--accent)">
+          Volume: {{ sessionVolume }}kg
+        </span>
       </div>
 
-      <!-- Mini lista de exercícios com status -->
       <div class="exercise-status-list">
         <div
           v-for="(ex, i) in activeSession?.exercises"
@@ -249,76 +173,24 @@
           <div
             class="ex-status-indicator"
             :class="{
-              done: exerciseComplete(ex),
-              active: i === activeExerciseIdx && !exerciseComplete(ex),
+              done: hasAnyLog(ex),
+              active: i === activeExerciseIdx && !hasAnyLog(ex),
             }"
           >
-            <svg
-              v-if="exerciseComplete(ex)"
-              width="10"
-              height="10"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="3"
-            >
+            <svg v-if="hasAnyLog(ex)" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
               <polyline points="20 6 9 17 4 12"></polyline>
             </svg>
-            <span
-              v-else-if="i === activeExerciseIdx"
-              style="
-                width: 6px;
-                height: 6px;
-                border-radius: 50%;
-                background: currentColor;
-                display: block;
-              "
-            ></span>
+            <span v-else-if="i === activeExerciseIdx" class="active-dot"></span>
           </div>
           <span class="ex-status-name">{{ ex.name }}</span>
-          <span class="ex-status-sets"
-            >{{ ex.logs?.length || 0 }}/{{ ex.series }}s</span
-          >
+          <span class="ex-status-sets">{{ ex.logs?.length || 0 }} série{{ ex.logs?.length !== 1 ? 's' : '' }}</span>
         </div>
       </div>
 
-      <div class="progress-bar-bg" style="height: 5px; margin-top: 12px">
-        <div
-          class="progress-bar-fill"
-          :style="{ width: progressPercentage + '%' }"
-        ></div>
-      </div>
-
-      <div class="volume-stat mt" style="font-size: 13px">
-        Volume:
-        <strong style="color: var(--accent)">{{ sessionVolume }} kg</strong>
+      <div class="progress-bar-bg" style="height: 4px; margin-top: 12px">
+        <div class="progress-bar-fill" :style="{ width: progressPercentage + '%' }"></div>
       </div>
     </div>
-
-    <div class="bottom-action">
-      <button class="btn btn-accent btn-large" @click="finishSession">
-        Finalizar Treino
-      </button>
-    </div>
-
-    <!-- Modal: Finalizar -->
-    <ConfirmModal
-      v-model:isOpen="showFinishModal"
-      title="Finalizar Treino"
-      message="Deseja finalizar este treino? Suas séries concluídas serão salvas no histórico."
-      confirmText="Finalizar"
-      @confirm="confirmFinishSession"
-    />
-
-    <!-- Modal: Descartar -->
-    <ConfirmModal
-      v-model:isOpen="showDiscardModal"
-      title="Descartar Treino"
-      message="Tem certeza que deseja descartar? Nenhum dado será salvo."
-      confirmText="Descartar"
-      confirmClass="btn-danger"
-      @confirm="confirmDiscardSession"
-    />
   </div>
 </template>
 
@@ -326,38 +198,22 @@
 import { ref, computed, watch, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { useSessionStore } from "../store/sessionStore";
-import ConfirmModal from "../components/ui/ConfirmModal.vue";
 
 const router = useRouter();
 const sessionStore = useSessionStore();
 const activeSession = computed(() => sessionStore.activeSession);
 
 const activeExerciseIdx = ref(0);
-const activeSetIdx = ref(0);
 const currentWeightInput = ref(0);
 const currentRepsInput = ref(0);
-const lastSessionWeight = ref<number | null>(null);
-const lastSessionReps = ref<number | null>(null);
-const showFinishModal = ref(false);
-const showDiscardModal = ref(false);
 
 const currentExercise = computed(
   () => activeSession.value?.exercises?.[activeExerciseIdx.value],
 );
 
-const currentSets = computed(() => {
-  const ex = currentExercise.value;
-  if (!ex) return [];
-  return getExSets(ex);
-});
-
 watch(
   () => activeExerciseIdx.value,
-  () => {
-    activeSetIdx.value = 0;
-    loadSetInputs();
-    fetchLastSessionLog();
-  },
+  () => loadDefaultInputs(),
 );
 
 onMounted(() => {
@@ -365,25 +221,14 @@ onMounted(() => {
     router.push("/workouts");
     return;
   }
-  loadSetInputs();
-  fetchLastSessionLog();
+  loadDefaultInputs();
 });
 
-function loadSetInputs() {
+function loadDefaultInputs() {
   const ex = currentExercise.value;
   if (!ex) return;
-  const sets = getExSets(ex);
-  const set = sets[activeSetIdx.value];
-  if (set) {
-    currentWeightInput.value = set.weightLogged || (ex as any).weight_kg || 0;
-    currentRepsInput.value = set.repsLogged || (ex as any).reps || 0;
-  }
-}
-
-async function fetchLastSessionLog() {
-  lastSessionWeight.value = null;
-  lastSessionReps.value = null;
-  // Placeholder — implementar busca de histórico real
+  currentWeightInput.value = ex.weight_kg || 0;
+  currentRepsInput.value = ex.reps || 0;
 }
 
 function prevExercise() {
@@ -391,101 +236,68 @@ function prevExercise() {
 }
 
 function nextExercise() {
-  if (
-    activeSession.value &&
-    activeExerciseIdx.value < activeSession.value.exercises!.length - 1
-  ) {
+  if (activeSession.value && activeExerciseIdx.value < activeSession.value.exercises.length - 1) {
     activeExerciseIdx.value++;
   }
 }
 
-function finishSession() {
-  showFinishModal.value = true;
+function goBack() {
+  const hadSession = !!sessionStore.currentSessionId;
+  sessionStore.resetSession();
+  if (hadSession) {
+    router.push("/history");
+  } else {
+    router.push("/workouts");
+  }
 }
 
-function discardSession() {
-  showDiscardModal.value = true;
+async function registerSet() {
+  const exercise = currentExercise.value;
+  if (!exercise) return;
+
+  const nextSetNumber = (exercise.logs?.length || 0) + 1;
+
+  await sessionStore.logSet(exercise.exercise_id, {
+    set_number: nextSetNumber,
+    reps_done: currentRepsInput.value,
+    weight_used_kg: currentWeightInput.value,
+  });
 }
 
-async function confirmFinishSession() {
-  await sessionStore.finishSession();
-  router.push("/history");
+function hasAnyLog(exercise: any) {
+  return exercise.logs?.length > 0;
 }
 
-function confirmDiscardSession() {
-  sessionStore.discardSession();
-  router.push("/workouts");
-}
-
-const completedExercises = computed(() => {
+const totalLogged = computed(() => {
   if (!activeSession.value?.exercises) return 0;
-  return activeSession.value.exercises.filter((ex: any) => exerciseComplete(ex))
-    .length;
+  return activeSession.value.exercises.reduce(
+    (acc: number, ex: any) => acc + (ex.logs?.length || 0),
+    0,
+  );
 });
 
 const progressPercentage = computed(() => {
-  const total = activeSession.value?.exercises?.length || 1;
-  return (completedExercises.value / total) * 100;
+  const exercises = activeSession.value?.exercises || [];
+  if (!exercises.length) return 0;
+  const withLogs = exercises.filter((ex: any) => ex.logs?.length > 0).length;
+  return (withLogs / exercises.length) * 100;
 });
 
 const sessionVolume = computed(() => {
   if (!activeSession.value?.exercises) return 0;
   return activeSession.value.exercises.reduce((acc: number, ex: any) => {
-    const exVol = (ex.logs || []).reduce(
+    return acc + (ex.logs || []).reduce(
       (exAcc: number, log: any) => exAcc + log.weight_used_kg * log.reps_done,
       0,
     );
-    return acc + exVol;
   }, 0);
 });
-
-function exerciseComplete(exercise: any) {
-  if (!exercise.logs || exercise.logs.length === 0) return false;
-  return exercise.logs.length >= exercise.series;
-}
-
-function getExSets(exercise: any): any[] {
-  const sets = [];
-  const logs = exercise.logs || [];
-  for (let i = 0; i < exercise.series; i++) {
-    const log = logs.find((l: any) => l.set_number === i + 1);
-    sets.push({
-      set_number: i + 1,
-      weightLogged: log?.weight_used_kg || exercise.weight_kg || 0,
-      repsLogged: log?.reps_done || exercise.reps || 0,
-      targetReps: exercise.reps,
-      targetWeight: exercise.weight_kg,
-      done: !!log,
-    });
-  }
-  return sets;
-}
-
-function markSetDone(exerciseId: string, setIndex: number) {
-  const exercise = (activeSession.value?.exercises as any[])?.find(
-    (ex) => ex.exercise_id === exerciseId,
-  );
-  if (!exercise) return;
-
-  const logData = {
-    set_number: setIndex + 1,
-    reps_done: currentRepsInput.value || exercise.reps || 10,
-    weight_used_kg: currentWeightInput.value || exercise.weight_kg || 0,
-  };
-
-  sessionStore.logSet(exerciseId, logData);
-
-  if (activeSetIdx.value < exercise.series - 1) {
-    activeSetIdx.value++;
-    loadSetInputs();
-  }
-}
 </script>
 
 <style scoped>
 .active-session-page {
   padding: 16px 20px;
-  padding-bottom: 120px;
+  padding-bottom: 40px;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -514,17 +326,52 @@ function markSetDone(exerciseId: string, setIndex: number) {
   justify-content: center;
   border-radius: 20px;
   transition: background 0.2s;
+  flex-shrink: 0;
 }
 .icon-btn:hover {
   background: var(--surface);
 }
+.save-indicator {
+  width: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--accent);
+  font-weight: 600;
+}
 
-/* Global progress bar (topo) */
+/* Spinner */
+.spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  display: inline-block;
+}
+.spinner-btn {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(25, 33, 38, 0.3);
+  border-top-color: #192126;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  display: inline-block;
+  vertical-align: middle;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Global progress bar */
 .global-progress-bar {
   height: 3px;
   background: var(--bg4);
   border-radius: 2px;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
   overflow: hidden;
 }
 .global-progress-fill {
@@ -532,18 +379,6 @@ function markSetDone(exerciseId: string, setIndex: number) {
   background: var(--accent);
   transition: width 0.4s ease;
   border-radius: 2px;
-}
-
-/* Session meta */
-.session-meta-row {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  margin-bottom: 20px;
-}
-.session-progress-label {
-  font-size: 12px;
-  color: var(--text2);
 }
 
 /* Exercise nav */
@@ -588,7 +423,6 @@ function markSetDone(exerciseId: string, setIndex: number) {
 .exercise-number {
   font-size: 11px;
   color: var(--text2);
-  text-transform: uppercase;
   letter-spacing: 0.5px;
   margin-bottom: 4px;
 }
@@ -631,42 +465,7 @@ function markSetDone(exerciseId: string, setIndex: number) {
   border-color: var(--accent);
 }
 
-/* Sets row */
-.sets-row {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 16px;
-  flex-wrap: wrap;
-}
-.set-pill {
-  padding: 6px 14px;
-  border-radius: 20px;
-  border: 1.5px solid var(--border);
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  background: var(--bg4);
-  color: var(--text2);
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-.set-pill.active {
-  background: var(--surface);
-  border-color: var(--accent);
-  color: var(--accent);
-}
-.set-pill.completed {
-  background: rgba(200, 241, 53, 0.12);
-  border-color: var(--accent);
-  color: var(--accent);
-}
-.set-pill-check {
-  font-size: 12px;
-}
-
-/* Set editor */
+/* Set editor card */
 .current-set-editor {
   padding: 20px;
   border-radius: 20px;
@@ -675,20 +474,26 @@ function markSetDone(exerciseId: string, setIndex: number) {
 .set-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
   margin-bottom: 20px;
 }
-.target-badge {
-  font-size: 11px;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  padding: 4px 10px;
-  border-radius: 20px;
+.set-hint {
+  font-size: 12px;
   color: var(--text2);
-  white-space: nowrap;
+}
+.set-hint strong {
+  color: var(--text);
+}
+.series-logged-count {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--accent-dim);
+  padding: 3px 10px;
+  border-radius: 20px;
 }
 
-/* Stepper inputs */
+/* Inputs */
 .set-inputs {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -717,9 +522,7 @@ function markSetDone(exerciseId: string, setIndex: number) {
   color: var(--text2);
   font-size: 20px;
   cursor: pointer;
-  transition:
-    color 0.2s,
-    background 0.2s;
+  transition: color 0.2s, background 0.2s;
   flex-shrink: 0;
 }
 .stepper-btn:hover {
@@ -740,6 +543,50 @@ function markSetDone(exerciseId: string, setIndex: number) {
   min-width: 0;
 }
 
+/* Logged sets panel */
+.logged-sets-panel {
+  padding: 16px 20px;
+}
+.logged-sets-header {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text2);
+  margin-bottom: 10px;
+}
+.logged-sets-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.logged-set-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+}
+.log-set-num {
+  font-size: 11px;
+  font-weight: 700;
+  background: var(--accent);
+  color: #192126;
+  padding: 2px 7px;
+  border-radius: 10px;
+  font-family: var(--font-mono);
+}
+.log-weight {
+  font-weight: 700;
+  font-family: var(--font-mono);
+}
+.log-reps {
+  color: var(--text2);
+}
+.log-volume {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
 /* Progress panel */
 .progress-panel {
   padding: 16px 20px;
@@ -750,8 +597,6 @@ function markSetDone(exerciseId: string, setIndex: number) {
   align-items: center;
   margin-bottom: 12px;
 }
-
-/* Exercise status list */
 .exercise-status-list {
   display: flex;
   flex-direction: column;
@@ -766,12 +611,8 @@ function markSetDone(exerciseId: string, setIndex: number) {
   cursor: pointer;
   transition: background 0.2s;
 }
-.ex-status-row:hover {
-  background: var(--bg4);
-}
-.ex-status-row.ex-status-active {
-  background: var(--accent-dim);
-}
+.ex-status-row:hover { background: var(--bg4); }
+.ex-status-row.ex-status-active { background: var(--accent-dim); }
 .ex-status-indicator {
   width: 20px;
   height: 20px;
@@ -792,53 +633,19 @@ function markSetDone(exerciseId: string, setIndex: number) {
   border-color: var(--accent);
   color: var(--accent);
 }
-.ex-status-name {
-  flex: 1;
-  font-size: 13px;
-  font-weight: 500;
+.active-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  display: block;
 }
-.ex-status-sets {
-  font-size: 11px;
-  color: var(--text2);
-  font-family: var(--font-mono);
-}
+.ex-status-name { flex: 1; font-size: 13px; font-weight: 500; }
+.ex-status-sets { font-size: 11px; color: var(--text2); font-family: var(--font-mono); }
 
-.progress-bar-bg {
-  background: var(--bg4);
-  border-radius: 3px;
-  overflow: hidden;
-}
-.progress-bar-fill {
-  height: 100%;
-  background: var(--accent);
-  transition: width 0.3s ease;
-}
-.volume-stat {
-  font-size: 13px;
-  color: var(--text2);
-}
+.progress-bar-bg { background: var(--bg4); border-radius: 3px; overflow: hidden; }
+.progress-bar-fill { height: 100%; background: var(--accent); transition: width 0.3s ease; }
 
-/* Bottom action */
-.bottom-action {
-  position: fixed;
-  bottom: 68px;
-  left: 0;
-  right: 0;
-  padding: 16px 20px 8px;
-  display: flex;
-  justify-content: center;
-  z-index: 99;
-  background: linear-gradient(to top, var(--bg) 60%, transparent);
-}
-.bottom-action .btn-large {
-  max-width: 440px;
-  width: 100%;
-}
-
-.mt {
-  margin-top: 12px;
-}
-.muted {
-  color: var(--text2);
-}
+.mt { margin-top: 12px; }
+.muted { color: var(--text2); }
 </style>
