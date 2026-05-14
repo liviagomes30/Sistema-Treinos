@@ -68,27 +68,6 @@
         </div>
       </div>
 
-      <div class="stat-card-home card-surface">
-        <div class="stat-val-home accent-text">
-          {{ totalVolume.toLocaleString("pt-BR") }}
-        </div>
-        <div class="stat-label-home">Volume total (kg)</div>
-        <div class="stat-icon-home">
-          <svg
-            width="32"
-            height="32"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <path
-              d="M6 4v16M18 4v16M2 9h4M18 9h4M2 15h4M18 15h4M6 9h12M6 15h12"
-            ></path>
-          </svg>
-        </div>
-      </div>
-
       <div class="stat-card-home card-accent">
         <div class="stat-val-home">
           {{ avgDuration }}<span class="stat-unit">min</span>
@@ -160,9 +139,6 @@
         <span>📅 {{ formatDate(lastSession.started_at) }}</span>
         <span v-if="lastSession.duration_seconds"
           >⏱ {{ formatDuration(lastSession.duration_seconds) }}</span
-        >
-        <span v-if="lastSession.totalVolume"
-          >🏋️ {{ lastSession.totalVolume }} kg</span
         >
       </div>
     </div>
@@ -268,10 +244,6 @@ const weekSessions = computed(() => {
     (s) => new Date(s.started_at) >= weekAgo && s.status === "completed",
   ).length;
 });
-
-const totalVolume = computed(() =>
-  sessionsArray.value.reduce((acc, s) => acc + (s.totalVolume || 0), 0),
-);
 
 const avgDuration = computed(() => {
   const completed = sessionsArray.value.filter((s) => s.duration_seconds);

@@ -39,7 +39,7 @@ class SessionService {
   }
 
   async update(id, userId, data) {
-    const { ai_summary } = data;
+    const { ai_summary, status, endTime } = data;
 
     const session = await repository.findOne(id, userId);
     if (!session) {
@@ -47,6 +47,8 @@ class SessionService {
     }
 
     if (ai_summary !== undefined) session.ai_summary = ai_summary;
+    if (status !== undefined) session.status = status;
+    if (endTime !== undefined) session.ended_at = new Date(endTime);
 
     return repository.save(session);
   }

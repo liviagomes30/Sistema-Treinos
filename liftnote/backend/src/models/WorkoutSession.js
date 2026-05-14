@@ -18,13 +18,16 @@ const workoutSessionSchema = new mongoose.Schema(
       type: Date,
       default: Date.now,
     },
+    ended_at: {
+      type: Date,
+    },
     status: {
       type: String,
       enum: {
-        values: ["completed"],
+        values: ["active", "completed"],
         message: "Status inválido",
       },
-      default: "completed",
+      default: "active",
     },
     ai_summary: {
       type: String,

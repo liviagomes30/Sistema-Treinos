@@ -10,10 +10,6 @@
         <div class="stat-val">{{ Math.round(avgDuration) }}</div>
         <div class="stat-label">Média (min)</div>
       </div>
-      <div class="stat-card">
-        <div class="stat-val">{{ totalVolume.toLocaleString("pt-BR") }}</div>
-        <div class="stat-label">Volume total (kg)</div>
-      </div>
       <div class="stat-card accent-card">
         <div class="stat-val">{{ weekStreak }}</div>
         <div class="stat-label">Semanas ativas</div>
@@ -120,7 +116,7 @@
             <div class="ai-badge">✦ Gemini AI</div>
             <h3 class="ai-title">Progresso por Exercício</h3>
             <p class="ai-desc">
-              Escolha um exercício para ver sua evolução de carga, volume e
+              Escolha um exercício para ver sua evolução de carga e
               receber sugestões de progressão.
             </p>
           </div>
@@ -223,12 +219,6 @@
               {{ weeklyData.avg_sessions_per_week }}
             </div>
             <div class="weekly-stat-label">Média/semana</div>
-          </div>
-          <div class="weekly-stat">
-            <div class="weekly-stat-val">
-              {{ weeklyData.total_volume_kg.toLocaleString("pt-BR") }}
-            </div>
-            <div class="weekly-stat-label">Volume (kg)</div>
           </div>
         </div>
 
@@ -335,13 +325,6 @@ const avgDuration = computed(() => {
     c.reduce((a: number, s: any) => a + s.duration_seconds, 0) / c.length / 60
   );
 });
-
-const totalVolume = computed(() =>
-  sessionsArray.value.reduce(
-    (acc: number, s: any) => acc + (s.totalVolume || 0),
-    0,
-  ),
-);
 
 const weekStreak = computed(() => {
   const weeks = new Set<string>();

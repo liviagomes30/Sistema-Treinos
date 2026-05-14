@@ -17,6 +17,8 @@ const createSessionSchema = z.object({
 const updateSessionSchema = z.object({
   body: z.object({
     ai_summary: z.string().optional().nullable(),
+    status: z.enum(["active", "completed"]).optional(),
+    endTime: z.string().optional()
   }),
 });
 

@@ -66,3 +66,5 @@ frontend/.vite
 # Others
 backend/.env
 frontend/.env
+
+.claude/

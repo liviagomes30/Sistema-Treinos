@@ -9,6 +9,20 @@
       </router-view>
     </div>
 
+    <!-- Active Session Banner -->
+    <div 
+      v-if="sessionStore.activeSession && route.path !== '/session'" 
+      class="active-session-banner" 
+      @click="router.push('/session')"
+    >
+      <div class="banner-pulse"></div>
+      <div class="banner-info">
+        <span class="banner-title">Treino em Andamento</span>
+        <span class="banner-workout">{{ sessionStore.activeSession.workoutName }}</span>
+      </div>
+      <div class="banner-action">Retomar <svg width="14" height="14" viewBox="0 0 24 24" fill="none" class="feather"><polyline points="9 18 15 12 9 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></polyline></svg></div>
+    </div>
+
     <!-- Bottom Navigation Bar -->
     <nav class="bottom-nav" v-if="showBottomNav">
       <router-link to="/" class="nav-item" exact-active-class="active">
@@ -36,9 +50,12 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { useRoute } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
+import { useSessionStore } from "../../store/sessionStore";
 
 const route = useRoute();
+const router = useRouter();
+const sessionStore = useSessionStore();
 
 const showBottomNav = computed(() => {
   const hiddenRoutes: string[] = [];
@@ -61,5 +78,57 @@ const showBottomNav = computed(() => {
   font-weight: 600;
   margin-top: 3px;
   letter-spacing: 0.3px;
+}
+
+/* Active Session Banner */
+.active-session-banner {
+  background: var(--accent);
+  color: #192126;
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  box-shadow: 0 -4px 12px rgba(187, 242, 70, 0.15);
+  transition: transform 0.2s;
+  z-index: 10;
+}
+.active-session-banner:active {
+  transform: scale(0.98);
+}
+.banner-pulse {
+  width: 10px;
+  height: 10px;
+  background: #192126;
+  border-radius: 50%;
+  animation: pulse-dark 1.5s infinite;
+  flex-shrink: 0;
+}
+.banner-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.banner-title {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.banner-workout {
+  font-size: 14px;
+  font-weight: 600;
+}
+.banner-action {
+  font-size: 13px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+@keyframes pulse-dark {
+  0% { box-shadow: 0 0 0 0 rgba(25, 33, 38, 0.4); }
+  70% { box-shadow: 0 0 0 6px rgba(25, 33, 38, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(25, 33, 38, 0); }
 }
 </style>

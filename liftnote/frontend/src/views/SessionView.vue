@@ -19,17 +19,9 @@
 
       <span class="topbar-title">{{ activeSession?.workoutName || "Treino" }}</span>
 
-      <div class="save-indicator" :class="{ saving: sessionStore.isSavingSet }">
-        <template v-if="sessionStore.isSavingSet">
-          <span class="spinner"></span>
-        </template>
-        <template v-else-if="totalLogged > 0">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <polyline points="20 6 9 17 4 12"></polyline>
-          </svg>
-          <span>{{ totalLogged }} série{{ totalLogged !== 1 ? 's' : '' }}</span>
-        </template>
-      </div>
+      <button class="btn btn-accent btn-sm" @click="finishSession" style="font-size: 12px; padding: 6px 12px; font-weight: 700;">
+        Finalizar
+      </button>
     </div>
 
     <!-- Barra de progresso global -->
@@ -114,19 +106,21 @@
           </div>
         </div>
 
-        <button
-          class="btn btn-accent btn-large mt"
-          style="width: 100%"
-          :disabled="sessionStore.isSavingSet || currentRepsInput <= 0"
-          @click="registerSet"
-        >
-          <template v-if="sessionStore.isSavingSet">
-            <span class="spinner-btn"></span> Salvando...
-          </template>
-          <template v-else>
-            + Registrar Série
-          </template>
-        </button>
+        <div>
+          <button
+            class="btn btn-accent btn-large mt"
+            style="width: 100%"
+            :disabled="sessionStore.isSavingSet || currentRepsInput <= 0"
+            @click="registerSet"
+          >
+            <template v-if="sessionStore.isSavingSet">
+              <span class="spinner-btn"></span> Salvando...
+            </template>
+            <template v-else>
+              + Registrar Série
+            </template>
+          </button>
+        </div>
       </div>
 
       <!-- Histórico de séries registradas para este exercício -->
@@ -141,7 +135,14 @@
             <span class="log-set-num">S{{ log.set_number }}</span>
             <span class="log-weight">{{ log.weight_used_kg }}kg</span>
             <span class="log-reps">× {{ log.reps_done }} reps</span>
-            <span class="log-volume muted">= {{ (log.weight_used_kg * log.reps_done).toFixed(0) }}kg vol</span>
+            <div class="log-actions" style="margin-left: auto;">
+              <button class="btn btn-icon btn-small danger-text" @click="deleteLog(log._id)" :disabled="sessionStore.isSavingSet">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" class="feather">
+                  <polyline points="3 6 5 6 21 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></polyline>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                </svg>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -156,9 +157,6 @@
       <div class="progress-panel-header">
         <span class="muted" style="font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px">
           Exercícios
-        </span>
-        <span style="font-size: 13px; font-weight: 700; color: var(--accent)">
-          Volume: {{ sessionVolume }}kg
         </span>
       </div>
 
@@ -191,6 +189,16 @@
         <div class="progress-bar-fill" :style="{ width: progressPercentage + '%' }"></div>
       </div>
     </div>
+
+    <!-- Confirm Finish Modal -->
+    <ConfirmModal
+      v-model:isOpen="showFinishModal"
+      title="Finalizar Treino"
+      message="Deseja realmente finalizar o treino?"
+      confirmText="Finalizar"
+      cancelText="Cancelar"
+      @confirm="onConfirmFinish"
+    />
   </div>
 </template>
 
@@ -198,6 +206,7 @@
 import { ref, computed, watch, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { useSessionStore } from "../store/sessionStore";
+import ConfirmModal from "../components/ui/ConfirmModal.vue";
 
 const router = useRouter();
 const sessionStore = useSessionStore();
@@ -206,6 +215,7 @@ const activeSession = computed(() => sessionStore.activeSession);
 const activeExerciseIdx = ref(0);
 const currentWeightInput = ref(0);
 const currentRepsInput = ref(0);
+const showFinishModal = ref(false);
 
 const currentExercise = computed(
   () => activeSession.value?.exercises?.[activeExerciseIdx.value],
@@ -213,7 +223,9 @@ const currentExercise = computed(
 
 watch(
   () => activeExerciseIdx.value,
-  () => loadDefaultInputs(),
+  () => {
+    loadDefaultInputs();
+  },
 );
 
 onMounted(() => {
@@ -241,11 +253,17 @@ function nextExercise() {
   }
 }
 
+async function deleteLog(logId: string) {
+  const exercise = currentExercise.value;
+  if (!exercise) return;
+
+  await sessionStore.deleteLogSet(exercise.exercise_id, logId);
+}
+
 function goBack() {
   const hadSession = !!sessionStore.currentSessionId;
-  sessionStore.resetSession();
   if (hadSession) {
-    router.push("/history");
+    router.push("/workouts");
   } else {
     router.push("/workouts");
   }
@@ -262,6 +280,15 @@ async function registerSet() {
     reps_done: currentRepsInput.value,
     weight_used_kg: currentWeightInput.value,
   });
+}
+
+function finishSession() {
+  showFinishModal.value = true;
+}
+
+async function onConfirmFinish() {
+  await sessionStore.finishSession();
+  router.push("/history");
 }
 
 function hasAnyLog(exercise: any) {
@@ -281,16 +308,6 @@ const progressPercentage = computed(() => {
   if (!exercises.length) return 0;
   const withLogs = exercises.filter((ex: any) => ex.logs?.length > 0).length;
   return (withLogs / exercises.length) * 100;
-});
-
-const sessionVolume = computed(() => {
-  if (!activeSession.value?.exercises) return 0;
-  return activeSession.value.exercises.reduce((acc: number, ex: any) => {
-    return acc + (ex.logs || []).reduce(
-      (exAcc: number, log: any) => exAcc + log.weight_used_kg * log.reps_done,
-      0,
-    );
-  }, 0);
 });
 </script>
 
@@ -581,11 +598,6 @@ const sessionVolume = computed(() => {
 .log-reps {
   color: var(--text2);
 }
-.log-volume {
-  margin-left: auto;
-  font-family: var(--font-mono);
-  font-size: 12px;
-}
 
 /* Progress panel */
 .progress-panel {
@@ -648,4 +660,23 @@ const sessionVolume = computed(() => {
 
 .mt { margin-top: 12px; }
 .muted { color: var(--text2); }
+.log-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.log-actions button {
+  background: transparent;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  color: var(--text-light);
+  transition: color 0.2s;
+}
+.log-actions button:hover {
+  color: var(--accent);
+}
+.log-actions button.danger-text:hover {
+  color: var(--danger);
+}
 </style>

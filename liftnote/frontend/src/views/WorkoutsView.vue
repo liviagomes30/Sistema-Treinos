@@ -68,6 +68,11 @@ onMounted(() => {
 });
 
 async function handleStartSession(workout: Workout) {
+  if (sessionStore.activeSession) {
+    if (!confirm('Você já tem um treino em andamento. Deseja cancelar o atual e iniciar um novo?')) {
+      return;
+    }
+  }
   await sessionStore.startSession(workout);
   if (sessionStore.activeSession) {
     router.push("/session");

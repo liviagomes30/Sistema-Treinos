@@ -128,13 +128,6 @@
       </div>
       <div class="stat-divider"></div>
       <div class="month-stat">
-        <span class="month-stat-val">{{
-          monthVolume.toLocaleString("pt-BR")
-        }}</span>
-        <span class="month-stat-label">kg volume</span>
-      </div>
-      <div class="stat-divider"></div>
-      <div class="month-stat">
         <span class="month-stat-val">{{ Math.round(monthAvgDuration) }}</span>
         <span class="month-stat-label">min médio</span>
       </div>
@@ -225,9 +218,6 @@
               <span v-if="session.duration_seconds"
                 >· ⏱ {{ formatDuration(session.duration_seconds) }}</span
               >
-              <span v-if="session.totalVolume"
-                >· 🏋️ {{ session.totalVolume }}kg</span
-              >
             </div>
           </div>
 
@@ -236,26 +226,47 @@
             <span :class="['status-badge', statusClass(session.status)]">
               {{ statusLabel(session.status) }}
             </span>
-            <button
-              class="delete-btn"
-              @click.stop="deleteSession(session._id)"
-              title="Excluir"
-            >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
+            <div style="display: flex; gap: 8px;">
+              <button
+                class="edit-btn"
+                @click.stop="editSession(session)"
+                title="Editar"
               >
-                <polyline points="3 6 5 6 21 6"></polyline>
-                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
-                <path d="M10 11v6M14 11v6"></path>
-              </svg>
-            </button>
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                </svg>
+              </button>
+              <button
+                class="delete-btn"
+                @click.stop="deleteSession(session._id)"
+                title="Excluir"
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <polyline points="3 6 5 6 21 6"></polyline>
+                  <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
+                  <path d="M10 11v6M14 11v6"></path>
+                </svg>
+              </button>
+            </div>
           </div>
         </div>
       </transition-group>
@@ -271,17 +282,33 @@
       :isDanger="true"
       @confirm="confirmDeleteSession"
     />
+
+    <!-- Modal detalhes da sessão -->
+    <SessionDetailModal
+      v-model:isOpen="showSessionModal"
+      :session="modalSession"
+      :workoutName="modalWorkoutName"
+      :loading="loadingSession"
+      :generatingAi="generatingAi"
+      @generateAiSummary="handleGenerateAiSummary"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
+import { useRouter } from "vue-router";
 import { useAppStore } from "../store/appStore";
+import { useSessionStore } from "../store/sessionStore";
 import { sessionService } from "../services/sessionService";
+import api from "../services/api";
 import ConfirmModal from "../components/ui/ConfirmModal.vue";
+import SessionDetailModal from "../components/workouts/SessionDetailModal.vue";
 import type { Session } from "../types";
 
 const appStore = useAppStore();
+const sessionStore = useSessionStore();
+const router = useRouter();
 
 onMounted(() => {
   appStore.fetchSessions();
@@ -302,6 +329,13 @@ const pickerYear = ref(today.getFullYear());
 const historySearch = ref("");
 const showDeleteModal = ref(false);
 const sessionToDelete = ref<string | null>(null);
+
+// ── Modal de detalhes ─────────────────────────────────────────
+const showSessionModal = ref(false);
+const modalSession = ref<any>(null);
+const modalWorkoutName = ref("");
+const loadingSession = ref(false);
+const generatingAi = ref(false);
 
 // ── Nomes ─────────────────────────────────────────────────────
 const monthNames = [
@@ -480,9 +514,6 @@ const monthSessions = computed(() =>
 );
 
 const monthSessionCount = computed(() => monthSessions.value.length);
-const monthVolume = computed(() =>
-  monthSessions.value.reduce((a, s: any) => a + (s.totalVolume || 0), 0),
-);
 const monthAvgDuration = computed(() => {
   const c = monthSessions.value.filter((s: any) => s.duration_seconds);
   if (!c.length) return 0;
@@ -575,9 +606,45 @@ function statusClass(status: string) {
   );
 }
 
-function viewSession(session: Session) {
-  // placeholder — expandir inline no futuro
-  console.log("Viewing session", session);
+async function viewSession(session: Session) {
+  modalWorkoutName.value = getWorkoutName((session as any).workout_id);
+  modalSession.value = session;
+  showSessionModal.value = true;
+  loadingSession.value = true;
+  try {
+    const full = await sessionService.getById(session._id);
+    modalSession.value = full;
+  } catch (err) {
+    console.error(err);
+  } finally {
+    loadingSession.value = false;
+  }
+}
+
+async function handleGenerateAiSummary(session: any) {
+  if (!session?._id) return;
+  generatingAi.value = true;
+  try {
+    const res = await api.post(`/ai/analyze/${session._id}`);
+    if (modalSession.value?._id === session._id) {
+      modalSession.value = { ...modalSession.value, ai_summary: res.data.ai_summary };
+    }
+    await appStore.fetchSessions();
+  } catch (err) {
+    console.error(err);
+  } finally {
+    generatingAi.value = false;
+  }
+}
+
+async function editSession(session: Session) {
+  try {
+    await sessionStore.resumeSession(session._id);
+    router.push("/session");
+  } catch (error) {
+    console.error("Erro ao retomar a sessão:", error);
+    alert("Falha ao abrir a sessão para edição.");
+  }
 }
 
 function deleteSession(id: string) {
@@ -1026,6 +1093,25 @@ async function confirmDeleteSession() {
 .badge-red {
   background: rgba(237, 71, 71, 0.15);
   color: var(--red);
+}
+
+.edit-btn {
+  background: none;
+  border: none;
+  color: var(--text3);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition:
+    color 0.2s,
+    background 0.2s;
+}
+.edit-btn:hover {
+  color: var(--accent);
+  background: rgba(46, 204, 113, 0.1);
 }
 
 .delete-btn {
