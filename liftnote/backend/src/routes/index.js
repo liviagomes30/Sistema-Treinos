@@ -14,6 +14,7 @@ const sessionController = require("../controllers/sessionController");
 const logController = require("../controllers/logsController");
 const aiController = require("../controllers/aiController");
 const userController = require("../controllers/userController");
+const placesController = require("../controllers/placesController");
 
 /**
  * @swagger
@@ -34,6 +35,8 @@ const userController = require("../controllers/userController");
  *     description: Feedbacks inteligentes gerados pelo Gemini
  *   - name: Users
  *     description: Perfil e conta do usuario logado
+ *   - name: Places
+ *     description: Busca de academias via Geoapify Places API
  */
 
 // ─── AUTH (público) ────────────────────────────────────────────
@@ -1056,5 +1059,39 @@ router.get(
  *         description: Relatório completo com stats e análise do Gemini
  */
 router.get("/ai/weekly-coach", auth, aiController.weeklyCoach);
+
+/**
+ * @swagger
+ * /places/gyms:
+ *   get:
+ *     summary: Busca academias próximas via Geoapify Places API
+ *     tags: [Places]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: lat
+ *         schema:
+ *           type: number
+ *         description: Latitude (use junto com lng para busca por proximidade)
+ *       - in: query
+ *         name: lng
+ *         schema:
+ *           type: number
+ *         description: Longitude (use junto com lat para busca por proximidade)
+ *       - in: query
+ *         name: city
+ *         schema:
+ *           type: string
+ *         description: Nome da cidade (alternativa quando lat/lng não disponíveis)
+ *     responses:
+ *       200:
+ *         description: Lista de academias encontradas
+ *       400:
+ *         description: Parâmetros ausentes
+ *       503:
+ *         description: API Key não configurada
+ */
+router.get("/places/gyms", auth, placesController.searchGyms);
 
 module.exports = router;

@@ -25,7 +25,7 @@ class SessionService {
   }
 
   async create(userId, data) {
-    const { workout_id } = data;
+    const { workout_id, gym_place_id, gym_name, gym_address } = data;
 
     const workoutExists = await repository.checkWorkoutExists(workout_id, userId);
     if (!workoutExists) {
@@ -35,11 +35,14 @@ class SessionService {
     return repository.create({
       user_id: userId,
       workout_id,
+      ...(gym_place_id && { gym_place_id }),
+      ...(gym_name && { gym_name }),
+      ...(gym_address && { gym_address }),
     });
   }
 
   async update(id, userId, data) {
-    const { ai_summary, status, endTime } = data;
+    const { ai_summary, status, endTime, gym_place_id, gym_name, gym_address } = data;
 
     const session = await repository.findOne(id, userId);
     if (!session) {
@@ -49,6 +52,9 @@ class SessionService {
     if (ai_summary !== undefined) session.ai_summary = ai_summary;
     if (status !== undefined) session.status = status;
     if (endTime !== undefined) session.ended_at = new Date(endTime);
+    if (gym_place_id !== undefined) session.gym_place_id = gym_place_id;
+    if (gym_name !== undefined) session.gym_name = gym_name;
+    if (gym_address !== undefined) session.gym_address = gym_address;
 
     return repository.save(session);
   }

@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import type { Workout } from '../types'
+import type { Workout, GymPlace } from '../types'
 import { sessionService } from '../services/sessionService'
 import { workoutService } from '../services/workoutService'
 
@@ -11,7 +11,7 @@ export const useSessionStore = defineStore('session', () => {
   const isSavingSet = ref(false)
   const error = ref<string | null>(null)
 
-  async function startSession(workout: Workout) {
+  async function startSession(workout: Workout, gym?: GymPlace | null) {
     isLoading.value = true
     error.value = null
     currentSessionId.value = null
@@ -21,6 +21,9 @@ export const useSessionStore = defineStore('session', () => {
       activeSession.value = {
         workout_id: workout._id,
         workoutName: workout.name,
+        gym_place_id: gym?.id ?? null,
+        gym_name: gym?.name ?? null,
+        gym_address: gym?.address ?? null,
         exercises: workoutExercises.map((we: any) => ({
           exercise_id: we._id,
           name: we.exercise_catalog_id?.name || we.custom_name || we.name || 'Exercício',
@@ -94,7 +97,12 @@ export const useSessionStore = defineStore('session', () => {
     isSavingSet.value = true
     try {
       if (!currentSessionId.value) {
-        const session = await sessionService.create({ workout_id: activeSession.value.workout_id })
+        const session = await sessionService.create({
+          workout_id: activeSession.value.workout_id,
+          gym_place_id: activeSession.value.gym_place_id,
+          gym_name: activeSession.value.gym_name,
+          gym_address: activeSession.value.gym_address,
+        })
         currentSessionId.value = session._id
       }
 

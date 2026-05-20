@@ -34,6 +34,20 @@ const workoutSessionSchema = new mongoose.Schema(
       default: null,
       maxlength: [2000, "Resumo da IA deve ter no máximo 2000 caracteres"],
     },
+    gym_place_id: {
+      type: String,
+      default: null,
+    },
+    gym_name: {
+      type: String,
+      default: null,
+      maxlength: [200, "Nome da academia deve ter no máximo 200 caracteres"],
+    },
+    gym_address: {
+      type: String,
+      default: null,
+      maxlength: [500, "Endereço da academia deve ter no máximo 500 caracteres"],
+    },
   },
   {
     timestamps: { createdAt: "created_at", updatedAt: "updated_at" },

@@ -17,7 +17,19 @@
         </svg>
       </div>
 
-      <span class="topbar-title">{{ activeSession?.workoutName || "Treino" }}</span>
+      <div class="topbar-center">
+        <span class="topbar-title">{{ activeSession?.workoutName || "Treino" }}</span>
+        <span v-if="activeSession?.gym_name" class="topbar-gym">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 8h1a4 4 0 0 1 0 8h-1"></path>
+            <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"></path>
+            <line x1="6" y1="1" x2="6" y2="4"></line>
+            <line x1="10" y1="1" x2="10" y2="4"></line>
+            <line x1="14" y1="1" x2="14" y2="4"></line>
+          </svg>
+          {{ activeSession.gym_name }}
+        </span>
+      </div>
 
       <button class="btn btn-accent btn-sm" @click="finishSession" style="font-size: 12px; padding: 6px 12px; font-weight: 700;">
         Finalizar
@@ -327,11 +339,32 @@ const progressPercentage = computed(() => {
   align-items: center;
   margin-bottom: 12px;
 }
+.topbar-center {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+
 .topbar-title {
   font-size: 15px;
   font-weight: 700;
-  flex: 1;
   text-align: center;
+}
+
+.topbar-gym {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--accent);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 .icon-btn {
   cursor: pointer;

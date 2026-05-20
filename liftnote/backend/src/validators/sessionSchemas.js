@@ -11,6 +11,9 @@ const getSessionsSchema = z.object({
 const createSessionSchema = z.object({
   body: z.object({
     workout_id: z.string().min(1, "workout_id é obrigatório"),
+    gym_place_id: z.string().optional().nullable(),
+    gym_name: z.string().max(200).optional().nullable(),
+    gym_address: z.string().max(500).optional().nullable(),
   }),
 });
 
@@ -18,7 +21,10 @@ const updateSessionSchema = z.object({
   body: z.object({
     ai_summary: z.string().optional().nullable(),
     status: z.enum(["active", "completed"]).optional(),
-    endTime: z.string().optional()
+    endTime: z.string().optional(),
+    gym_place_id: z.string().optional().nullable(),
+    gym_name: z.string().max(200).optional().nullable(),
+    gym_address: z.string().max(500).optional().nullable(),
   }),
 });
 

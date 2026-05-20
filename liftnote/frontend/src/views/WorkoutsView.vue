@@ -41,11 +41,17 @@
       </div>
     </div>
 
-    <!-- Modal -->
+    <!-- Modal de novo treino -->
     <WorkoutModal
       v-model:isOpen="showWorkoutModal"
       :isEdit="false"
       @save="handleSaveWorkout"
+    />
+
+    <!-- Modal de seleção de academia -->
+    <GymSelectorModal
+      v-model:isOpen="showGymSelector"
+      @select="onGymSelected"
     />
   </div>
 </template>
@@ -56,12 +62,15 @@ import { useRouter } from "vue-router";
 import { useAppStore } from "../store/appStore";
 import { useSessionStore } from "../store/sessionStore";
 import WorkoutModal from "../components/workouts/WorkoutModal.vue";
-import type { Workout } from "../types";
+import GymSelectorModal from "../components/ui/GymSelectorModal.vue";
+import type { Workout, GymPlace } from "../types";
 
 const appStore = useAppStore();
 const sessionStore = useSessionStore();
 const router = useRouter();
 const showWorkoutModal = ref(false);
+const showGymSelector = ref(false);
+const pendingWorkout = ref<Workout | null>(null);
 
 onMounted(() => {
   appStore.fetchWorkouts();
@@ -73,7 +82,14 @@ async function handleStartSession(workout: Workout) {
       return;
     }
   }
-  await sessionStore.startSession(workout);
+  pendingWorkout.value = workout;
+  showGymSelector.value = true;
+}
+
+async function onGymSelected(gym: GymPlace | null) {
+  if (!pendingWorkout.value) return;
+  await sessionStore.startSession(pendingWorkout.value, gym);
+  pendingWorkout.value = null;
   if (sessionStore.activeSession) {
     router.push("/session");
   }

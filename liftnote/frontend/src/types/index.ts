@@ -73,4 +73,14 @@ export interface Session {
   started_at: string;
   status: 'completed';
   exercises?: SessionExercise[];
+  gym_place_id?: string | null;
+  gym_name?: string | null;
+  gym_address?: string | null;
+}
+
+export interface GymPlace {
+  id: string;
+  name: string;
+  address: string;
+  mapsUrl: string | null;
 }
