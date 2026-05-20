@@ -32,7 +32,7 @@ const searchGyms = async (req, res, next) => {
     // Geoapify usa lon,lat (longitude primeiro)
     const placesUrl =
       `${GEOAPIFY_BASE}/v2/places` +
-      `?categories=sport.fitness.gym` +
+      `?categories=sport.fitness` +
       `&filter=circle:${longitude},${latitude},5000` +
       `&bias=proximity:${longitude},${latitude}` +
       `&limit=20` +
