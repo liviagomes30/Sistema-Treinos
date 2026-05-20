@@ -24,6 +24,14 @@
             Buscar
           </button>
         </div>
+        <div class="gym-or">ou</div>
+        <input
+          v-model="manualGymName"
+          type="text"
+          placeholder="Não encontrei minha academia — digite o nome"
+          class="gym-input"
+          @keyup.enter="confirmManualGym"
+        />
       </div>
 
       <!-- Carregando -->
@@ -73,13 +81,15 @@
         </div>
       </div>
 
+
+
       <!-- Ações -->
       <div class="gym-actions">
         <button class="btn btn-ghost" @click="skipAndContinue">Pular</button>
         <button
           class="btn btn-accent"
-          :disabled="!selectedGym"
-          @click="confirmSelection"
+          :disabled="!selectedGym && !manualGymName.trim()"
+          @click="manualGymName.trim() ? confirmManualGym() : confirmSelection()"
         >
           Confirmar
         </button>
@@ -107,6 +117,7 @@ const errorMsg = ref('');
 const gyms = ref<GymPlace[]>([]);
 const selectedGym = ref<GymPlace | null>(null);
 const cityInput = ref('');
+const manualGymName = ref('');
 
 async function detectLocation() {
   if (!navigator.geolocation) {
@@ -179,12 +190,29 @@ function skipAndContinue() {
   emit('update:isOpen', false);
 }
 
+
+function confirmManualGym() {
+  const name = manualGymName.value.trim();
+  if (!name) return;
+
+  const manualGym: GymPlace = {
+    id: 'manual',
+    name,
+    address: '',
+    mapsUrl: null,
+  };
+
+  emit('select', manualGym);
+  emit('update:isOpen', false);
+}
+
 function reset() {
   locationState.value = 'idle';
   gyms.value = [];
   selectedGym.value = null;
   errorMsg.value = '';
   cityInput.value = '';
+  manualGymName.value = '';
 }
 </script>
 
@@ -356,5 +384,48 @@ function reset() {
   padding-top: 4px;
   border-top: 1px solid var(--border);
   margin-top: 4px;
+}
+
+.manual-gym-toggle {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.btn-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text2);
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  transition: color 0.2s;
+}
+
+.btn-link:hover {
+  color: var(--accent);
+}
+
+.manual-gym-form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  animation: fadeSlideIn 0.2s ease;
+}
+
+.manual-gym-hint {
+  font-size: 11px;
+  color: var(--text2);
+  margin: 0;
+}
+
+@keyframes fadeSlideIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 </style>
