@@ -11,8 +11,9 @@
     </div>
 
     <template v-else>
-      <div style="font-size: 12px; color: var(--text2); margin-bottom: 12px">
-        {{ formattedDate }}
+      <div style="font-size: 12px; color: var(--text2); margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between;">
+        <span>{{ formattedDate }}</span>
+        <span style="color: var(--accent);">{{ gymNameLabel }}</span>
       </div>
 
       <div
@@ -102,6 +103,10 @@ const formattedDate = computed(() => {
 const statusLabel = computed(() => {
   const map: Record<string, string> = { completed: "Finalizado", cancelled: "Cancelado" };
   return map[props.session?.status] || "Em andamento";
+});
+
+const gymNameLabel = computed(() => {
+  return props.session?.gym_name || "Academia";
 });
 
 const exerciseGroups = computed(() => {
