@@ -283,40 +283,43 @@ Seja técnico e use os números reais. Máximo 150 palavras.`;
     };
   }
 
-  // ─── 3. Coach semanal — análise geral do usuário ─────────────
-  async weeklyCoach(userId) {
-    // Busca sessões das últimas 4 semanas
-    const fourWeeksAgo = new Date(Date.now() - 28 * 24 * 60 * 60 * 1000);
+  // ─── 3. Coach por período — análise geral do usuário ─────────
+  async weeklyCoach(userId, weeks = 4) {
+    const days = weeks * 7;
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
     const allSessions = await sessionRepository.find(
       {
         user_id: userId,
         status: "completed",
-        started_at: { $gte: fourWeeksAgo },
+        started_at: { $gte: since },
       },
       0,
-      50,
+      100,
     );
 
     if (!allSessions.length) {
-      throw new AppError("Sem sessões nas últimas 4 semanas para análise", 400);
+      throw new AppError(
+        `Sem sessões nas últimas ${weeks} semanas para análise`,
+        400,
+      );
     }
 
-    // Estatísticas por semana
-    const weeks = [0, 0, 0, 0]; // treinos por semana
+    // Treinos por semana (índice 0 = mais recente)
+    const weekCounts = Array.from({ length: weeks }, () => 0);
     const now = new Date();
     for (const s of allSessions) {
       const daysAgo = Math.floor(
         (now - new Date(s.started_at)) / (1000 * 60 * 60 * 24),
       );
-      const weekIdx = Math.min(Math.floor(daysAgo / 7), 3);
-      weeks[weekIdx]++;
+      const weekIdx = Math.min(Math.floor(daysAgo / 7), weeks - 1);
+      weekCounts[weekIdx]++;
     }
 
     // Exercícios mais treinados
     const logs = await Promise.all(
       allSessions
-        .slice(0, 20)
+        .slice(0, 30)
         .map((s) => logRepository.getLogsBySessionId(s._id)),
     );
     const flat = logs.flat();
@@ -334,7 +337,7 @@ Seja técnico e use os números reais. Máximo 150 palavras.`;
       .map(([name, count]) => `${name} (${count}x)`)
       .join(", ");
 
-    const avgSessionsPerWeek = (allSessions.length / 4).toFixed(1);
+    const avgSessionsPerWeek = (allSessions.length / weeks).toFixed(1);
     const totalDuration = allSessions.reduce(
       (acc, s) => acc + (s.duration_seconds || 0),
       0,
@@ -343,17 +346,21 @@ Seja técnico e use os números reais. Máximo 150 palavras.`;
       Math.round(totalDuration / allSessions.length),
     );
 
-    const prompt = `Você é um coach de performance física fazendo uma análise mensal de um atleta.
+    const weeksBreakdown = weekCounts
+      .map((c, i) => `Sem${i + 1}: ${c}`)
+      .join(", ");
 
-Dados das últimas 4 semanas:
+    const prompt = `Você é um coach de performance física fazendo uma análise de ${weeks} semanas de um atleta.
+
+Dados das últimas ${weeks} semanas:
 - Total de treinos: ${allSessions.length}
 - Média de treinos/semana: ${avgSessionsPerWeek}
-- Treinos por semana (mais recente → mais antigo): Sem1: ${weeks[0]}, Sem2: ${weeks[1]}, Sem3: ${weeks[2]}, Sem4: ${weeks[3]}
+- Treinos por semana (mais recente → mais antigo): ${weeksBreakdown}
 - Duração média por sessão: ${avgDuration}
 - Volume total acumulado: ${Math.round(totalVolumeAll)}kg
 - Exercícios mais realizados: ${topExercises}
 
-Gere um relatório de coach semanal em português com 4 seções:
+Gere um relatório de coach em português com 4 seções:
 
 **🏆 Resumo do período**
 (Performance geral, consistência, destaques)
@@ -367,12 +374,12 @@ Gere um relatório de coach semanal em português com 4 seções:
 **🗓️ Plano para as próximas 2 semanas**
 (Recomendações de frequência, foco muscular e progressão de carga)
 
-Tom motivador mas honesto. Baseie-se 100% nos dados fornecidos. Máximo 250 palavras.`;
+Tom motivador mas honesto. Baseie-se 100% nos dados fornecidos. Máximo 300 palavras.`;
 
-    const coachReport = await this._callGemini(prompt, 1500);
+    const coachReport = await this._callGemini(prompt, 1800);
 
     return {
-      period_weeks: 4,
+      period_weeks: weeks,
       total_sessions: allSessions.length,
       avg_sessions_per_week: parseFloat(avgSessionsPerWeek),
       total_volume_kg: Math.round(totalVolumeAll),

@@ -44,5 +44,10 @@ export const workoutService = {
 
   async removeExercise(workoutId: string, id: string): Promise<void> {
     await api.delete(`/workouts/${workoutId}/exercises/${id}`);
-  }
+  },
+
+  async getLastLoads(workoutId: string): Promise<Record<string, { set_number: number; reps_done: number; weight_used_kg: number }[]>> {
+    const response = await api.get(`/workouts/${workoutId}/last-loads`);
+    return response.data;
+  },
 };

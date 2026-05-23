@@ -16,7 +16,10 @@ export const useSessionStore = defineStore('session', () => {
     error.value = null
     currentSessionId.value = null
     try {
-      const workoutExercises = await workoutService.getExercises(workout._id)
+      const [workoutExercises, lastLoads] = await Promise.all([
+        workoutService.getExercises(workout._id),
+        workoutService.getLastLoads(workout._id).catch(() => ({})),
+      ])
 
       activeSession.value = {
         workout_id: workout._id,
@@ -34,6 +37,7 @@ export const useSessionStore = defineStore('session', () => {
           set_type: we.set_type,
           rest_seconds: we.rest_seconds,
           logs: [],
+          last_loads: (lastLoads as any)[we._id] || null,
         })),
       }
     } catch (err: any) {
@@ -53,7 +57,10 @@ export const useSessionStore = defineStore('session', () => {
       
       const workoutId = typeof session.workout_id === 'object' ? (session.workout_id as any)._id : session.workout_id
       const workoutName = typeof session.workout_id === 'object' ? (session.workout_id as any).name : 'Treino'
-      const workoutExercises = await workoutService.getExercises(workoutId)
+      const [workoutExercises, lastLoads] = await Promise.all([
+        workoutService.getExercises(workoutId),
+        workoutService.getLastLoads(workoutId).catch(() => ({})),
+      ])
 
       if (session.status === 'completed') {
         await sessionService.update(sessionId, { status: 'active' })
@@ -78,6 +85,7 @@ export const useSessionStore = defineStore('session', () => {
             set_type: we.set_type,
             rest_seconds: we.rest_seconds,
             logs: exLogs,
+            last_loads: (lastLoads as any)[we._id] || null,
           }
         }),
       }

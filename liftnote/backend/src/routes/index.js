@@ -326,6 +326,7 @@ router.post(
  *       200:
  *         description: OK
  */
+router.get("/catalog/logged", auth, exerciseCatalogController.getLogged);
 router.get("/catalog/:id", auth, exerciseCatalogController.getOne);
 
 /**
@@ -560,6 +561,8 @@ router.delete("/workouts/:id", auth, workoutController.remove);
  *       200:
  *         description: OK Reordena
  */
+router.get("/workouts/:workoutId/last-loads", auth, workoutExerciseController.getLastLoads);
+
 router.patch(
   "/workouts/:workoutId/exercises/reorder",
   auth,
@@ -1058,7 +1061,7 @@ router.get(
  *       200:
  *         description: Relatório completo com stats e análise do Gemini
  */
-router.get("/ai/weekly-coach", auth, aiController.weeklyCoach);
+router.get("/ai/weekly-coach", auth, validateRequest(aiSchemas.weeklyCoachSchema), aiController.weeklyCoach);
 
 /**
  * @swagger

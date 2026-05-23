@@ -1,4 +1,5 @@
 const service = require("../services/workoutExerciseService");
+const logRepository = require("../repositories/logRepository");
 
 // GET /api/workouts/:workoutId/exercises
 const getAll = async (req, res, next) => {
@@ -60,4 +61,17 @@ const reorder = async (req, res, next) => {
   }
 };
 
-module.exports = { getAll, getOne, create, update, remove, reorder };
+// GET /api/workouts/:workoutId/last-loads
+const getLastLoads = async (req, res, next) => {
+  try {
+    const loads = await logRepository.getLastLoadsByWorkout(
+      req.params.workoutId,
+      req.user._id,
+    );
+    res.json(loads);
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = { getAll, getOne, create, update, remove, reorder, getLastLoads };

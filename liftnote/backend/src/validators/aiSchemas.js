@@ -12,7 +12,19 @@ const analyzeProgressSchema = z.object({
   }),
 });
 
+const weeklyCoachSchema = z.object({
+  query: z.object({
+    weeks: z
+      .string()
+      .optional()
+      .refine((v) => !v || [2, 4, 8, 12].includes(Number(v)), {
+        message: "weeks deve ser 2, 4, 8 ou 12",
+      }),
+  }),
+});
+
 module.exports = {
   analyzeSessionSchema,
   analyzeProgressSchema,
+  weeklyCoachSchema,
 };

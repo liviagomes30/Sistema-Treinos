@@ -26,10 +26,11 @@ const analyzeProgress = async (req, res, next) => {
   }
 };
 
-// GET /api/ai/weekly-coach — relatório semanal do coach
+// GET /api/ai/weekly-coach — relatório do coach por período
 const weeklyCoach = async (req, res, next) => {
   try {
-    const result = await service.weeklyCoach(req.user._id);
+    const weeks = parseInt(req.query.weeks) || 4;
+    const result = await service.weeklyCoach(req.user._id, weeks);
     res.json(result);
   } catch (err) {
     next(err);

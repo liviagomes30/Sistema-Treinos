@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Get-ChildItem -Path \"c:\\\\Trabalho-LP-Academia\\\\liftnote\" -Directory)",
+      "Bash(Select-Object -ExpandProperty Name)",
+      "Bash(xargs grep -l \"distinct\\\\|catalog.*user\\\\|logged.*exercise\")",
+      "Bash(cd /c/Trabalho-LP-Academia/liftnote && find . -type d | head -50)",
+      "Read(//c/c/Trabalho-LP-Academia/**)",
+      "Bash(sed \"s/['\\\\\"].*//\")",
+      "Bash(sed \"s/\\\\.vue.*//\")",
+      "Bash(Remove-Item \"c:\\\\Trabalho-LP-Academia\\\\liftnote\\\\frontend\\\\src\\\\components\\\\workouts\\\\ExerciseModal.vue\")",
+      "Bash(Remove-Item \"c:\\\\Trabalho-LP-Academia\\\\liftnote\\\\frontend\\\\src\\\\components\\\\workouts\\\\SessionSummaryModal.vue\")",
+      "Bash(Remove-Item \"c:\\\\Trabalho-LP-Academia\\\\liftnote\\\\frontend\\\\src\\\\composables\\\\useExercises.ts\")",
+      "PowerShell(Remove-Item \"c:\\\\Trabalho-LP-Academia\\\\liftnote\\\\frontend\\\\src\\\\components\\\\workouts\\\\ExerciseModal.vue\" -Confirm:$false)",
+      "PowerShell(Remove-Item \"c:\\\\Trabalho-LP-Academia\\\\liftnote\\\\frontend\\\\src\\\\components\\\\workouts\\\\SessionSummaryModal.vue\" -Confirm:$false)",
+      "PowerShell(Remove-Item \"c:\\\\Trabalho-LP-Academia\\\\liftnote\\\\frontend\\\\src\\\\composables\\\\useExercises.ts\" -Confirm:$false)"
+    ]
+  }
+}

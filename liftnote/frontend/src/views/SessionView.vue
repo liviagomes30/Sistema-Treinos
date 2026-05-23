@@ -93,6 +93,14 @@
               Sugestão: <strong>{{ currentExercise.series }}x{{ currentExercise.reps }}</strong>
               <span v-if="currentExercise.weight_kg"> · {{ currentExercise.weight_kg }}kg</span>
             </div>
+            <div v-if="currentExercise.last_loads?.length" class="last-load-hint">
+              <span class="last-load-label">Último:</span>
+              <span
+                v-for="(s, i) in currentExercise.last_loads"
+                :key="i"
+                class="last-load-set"
+              >{{ s.weight_used_kg }}kg×{{ s.reps_done }}</span>
+            </div>
           </div>
           <div class="series-logged-count">
             {{ currentExercise.logs?.length || 0 }} registrada{{ currentExercise.logs?.length !== 1 ? 's' : '' }}
@@ -533,6 +541,29 @@ const progressPercentage = computed(() => {
 }
 .set-hint strong {
   color: var(--text);
+}
+.last-load-hint {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+.last-load-label {
+  font-size: 11px;
+  color: var(--text2);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+.last-load-set {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--accent-dim);
+  padding: 2px 7px;
+  border-radius: 8px;
 }
 .series-logged-count {
   font-size: 12px;

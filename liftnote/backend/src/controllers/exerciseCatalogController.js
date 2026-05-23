@@ -1,4 +1,5 @@
 const service = require("../services/exerciseCatalogService");
+const logRepository = require("../repositories/logRepository");
 
 // GET /api/catalog
 const getAll = async (req, res, next) => {
@@ -51,4 +52,14 @@ const remove = async (req, res, next) => {
   }
 };
 
-module.exports = { getAll, getOne, create, update, remove };
+// GET /api/catalog/logged
+const getLogged = async (req, res, next) => {
+  try {
+    const items = await logRepository.getLoggedCatalogItems(req.user._id);
+    res.json(items);
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = { getAll, getOne, create, update, remove, getLogged };

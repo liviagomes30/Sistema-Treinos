@@ -3,6 +3,7 @@ const {
   WorkoutSession,
   WorkoutExercise,
   Workout,
+  ExerciseCatalog,
 } = require("../models");
 
 class LogRepository {
@@ -61,6 +62,44 @@ class LogRepository {
       _id: workoutExerciseId,
       workout_id: workoutId,
     });
+  }
+
+  async getLoggedCatalogItems(userId) {
+    const sessionIds = await WorkoutSession.find({ user_id: userId, status: "completed" }).distinct("_id");
+    if (!sessionIds.length) return [];
+    const weIds = await ExerciseLog.find({ session_id: { $in: sessionIds } }).distinct("workout_exercise_id");
+    if (!weIds.length) return [];
+    const catalogIds = await WorkoutExercise.find({ _id: { $in: weIds } }).distinct("exercise_catalog_id");
+    if (!catalogIds.length) return [];
+    return ExerciseCatalog.find({ _id: { $in: catalogIds } }).select("name muscle_group").sort("name");
+  }
+
+  async getLastLoadsByWorkout(workoutId, userId) {
+    const lastSession = await WorkoutSession.findOne({
+      workout_id: workoutId,
+      user_id: userId,
+      status: "completed",
+    })
+      .sort({ started_at: -1 })
+      .select("_id");
+
+    if (!lastSession) return {};
+
+    const logs = await ExerciseLog.find({ session_id: lastSession._id })
+      .sort({ set_number: 1 })
+      .select("workout_exercise_id set_number reps_done weight_used_kg");
+
+    const grouped = {};
+    for (const log of logs) {
+      const key = log.workout_exercise_id.toString();
+      if (!grouped[key]) grouped[key] = [];
+      grouped[key].push({
+        set_number: log.set_number,
+        reps_done: log.reps_done,
+        weight_used_kg: log.weight_used_kg,
+      });
+    }
+    return grouped;
   }
 
   async create(data) {

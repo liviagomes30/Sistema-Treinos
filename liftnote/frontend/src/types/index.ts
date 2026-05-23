@@ -76,6 +76,8 @@ export interface Session {
   gym_place_id?: string | null;
   gym_name?: string | null;
   gym_address?: string | null;
+  ai_summary?: string | null;
+  duration_seconds?: number | null;
 }
 
 export interface GymPlace {
