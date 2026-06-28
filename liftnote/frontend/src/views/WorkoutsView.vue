@@ -88,7 +88,7 @@ async function handleStartSession(workout: Workout) {
 
 async function onGymSelected(gym: GymPlace | null) {
   if (!pendingWorkout.value) return;
-  await sessionStore.startSession(pendingWorkout.value, gym);
+  await sessionStore.initializeWorkoutSession(pendingWorkout.value, gym);
   pendingWorkout.value = null;
   if (sessionStore.activeSession) {
     router.push("/session");

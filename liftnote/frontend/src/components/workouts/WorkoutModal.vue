@@ -52,7 +52,6 @@ watch(
   () => props.isOpen,
   (val) => {
     if (val) {
-      // Clona o estado inicial
       form.value = { ...props.initialData };
     }
   },

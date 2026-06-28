@@ -59,18 +59,21 @@ body {
   display: flex;
   justify-content: center;
   align-items: flex-start;
+  /* Prevent elastic bounce scroll on iOS */
+  overscroll-behavior: none;
 }
 
 #app {
   width: 100%;
   max-width: 480px;
-  min-height: 100vh;
   height: 100%;
   background: var(--bg);
   position: relative;
   display: flex;
   flex-direction: column;
-  overflow-x: hidden;
+  overflow: hidden;
+  /* Respect iOS notch / Dynamic Island at top */
+  padding-top: env(safe-area-inset-top);
 }
 
 /* ─── ROUTER VIEW WRAPPER ─── */
@@ -85,18 +88,15 @@ body {
 
 /* ─── BOTTOM NAV ─── */
 .bottom-nav {
-  position: sticky;
-  bottom: 0;
-  left: 0;
-  right: 0;
   width: 100%;
-  height: 68px;
+  height: calc(96px + env(safe-area-inset-bottom));
   background: rgba(25, 33, 38, 0.97);
   border-top: 1px solid var(--border);
   display: flex;
   align-items: center;
   justify-content: space-around;
   padding: 0 8px;
+  padding-bottom: max(36px, env(safe-area-inset-bottom));
   z-index: 100;
   flex-shrink: 0;
   backdrop-filter: blur(12px);
@@ -600,6 +600,14 @@ label {
   color: var(--text2);
   font-size: 22px;
   line-height: 1;
+  /* Minimum 44×44px touch target */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  margin: -10px -10px 0 0;
+  border-radius: var(--r);
 }
 
 .modal-close:hover {
@@ -779,4 +787,104 @@ h3 {
   background: var(--accent);
   border-radius: 4px;
   transition: width 0.4s ease;
+}
+
+/* ─── MINIMUM FONT SIZES ─── */
+.tag { font-size: 12px; }
+.stat-label { font-size: 12px; }
+.cal-day-label { font-size: 11px; }
+.cal-day { font-size: 13px; }
+
+/* ─── DYNAMIC BOTTOM PADDING HELPER ─── */
+.page-bottom-pad {
+  padding-bottom: calc(96px + env(safe-area-inset-bottom) + 16px);
+}
+
+/* ─── SET ROW: fluid on narrow screens ─── */
+@media (max-width: 360px) {
+  .set-row {
+    grid-template-columns: 24px 1fr 1fr 64px;
+    gap: 6px;
+  }
+}
+
+/* ─── SMALL PHONE BREAKPOINT (≤ 360px) ─── */
+@media (max-width: 360px) {
+  html, body {
+    font-size: 13px;
+  }
+
+  #app {
+    font-size: 13px;
+  }
+
+  /* Tighten global padding */
+  .topbar {
+    padding: 14px 16px;
+  }
+
+  /* Smaller cards */
+  .card {
+    padding: 16px;
+  }
+
+  /* Buttons a bit smaller */
+  .btn {
+    padding: 8px 14px;
+    font-size: 12px;
+  }
+
+  .btn-large {
+    padding: 13px 20px;
+    font-size: 14px;
+  }
+
+  /* Nav items slightly tighter */
+  .nav-item {
+    width: 44px;
+    height: 44px;
+  }
+
+  /* Bottom nav height */
+  .bottom-nav {
+    height: calc(84px + env(safe-area-inset-bottom));
+    padding-bottom: max(28px, env(safe-area-inset-bottom));
+  }
+
+  /* Headings */
+  h2 {
+    font-size: 18px;
+  }
+
+  /* Stat values */
+  .stat-val {
+    font-size: 26px;
+  }
+
+  /* Modals fill more of the screen */
+  .modal {
+    padding: 20px 16px;
+  }
+}
+
+/* ─── LARGE PHONE / TABLET (≥ 600px) ─── */
+@media (min-width: 600px) {
+  #app {
+    max-width: 560px;
+  }
+
+  .modal {
+    border-radius: 20px;
+    max-width: 540px;
+  }
+
+  /* Larger stat values */
+  .stat-val {
+    font-size: 36px;
+  }
+
+  .btn-large {
+    padding: 17px 28px;
+    font-size: 16px;
+  }
 }

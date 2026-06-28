@@ -26,7 +26,6 @@ export const workoutService = {
     await api.delete(`/workouts/${id}`);
   },
 
-  // Workout Exercises
   async getExercises(workoutId: string): Promise<Exercise[]> {
     const response = await api.get<Exercise[]>(`/workouts/${workoutId}/exercises`);
     return response.data;

@@ -11,7 +11,6 @@ export const useAppStore = defineStore("app", () => {
   const isLoading = ref(false);
   const error = ref<string | null>(null);
 
-  // Getters
   const getWorkoutName = computed(() => {
     return (id: string) => {
       const w = workouts.value.find((w) => w._id === id);
@@ -19,7 +18,6 @@ export const useAppStore = defineStore("app", () => {
     };
   });
 
-  // Actions
   async function fetchWorkouts() {
     isLoading.value = true;
     try {

@@ -1,21 +1,46 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
+import { Preferences } from "@capacitor/preferences";
 import type { User, LoginData, RegisterData } from "../types";
 import { authService } from "../services/authService";
+import { setApiToken } from "../services/api";
+
+async function getItem(key: string): Promise<string | null> {
+  const { value } = await Preferences.get({ key });
+  return value;
+}
+
+async function setItem(key: string, value: string): Promise<void> {
+  await Preferences.set({ key, value });
+}
+
+async function removeItem(key: string): Promise<void> {
+  await Preferences.remove({ key });
+}
 
 export const useAuthStore = defineStore("auth", () => {
-  let savedUser = null;
-  try {
-    const userItem = localStorage.getItem("user");
-    savedUser = userItem ? JSON.parse(userItem) : null;
-  } catch (e) {
-    console.error("Failed to parse user from localStorage", e);
-    localStorage.removeItem("user");
-  }
-  const currentUser = ref<User | null>(savedUser);
-  const token = ref<string | null>(localStorage.getItem("token"));
+  const currentUser = ref<User | null>(null);
+  const token = ref<string | null>(null);
   const isLoading = ref(false);
   const error = ref<string | null>(null);
+  const isInitialized = ref(false);
+
+  async function restoreAuthFromStorage() {
+    if (isInitialized.value) return;
+    try {
+      const [savedUser, savedToken] = await Promise.all([
+        getItem("user"),
+        getItem("token"),
+      ]);
+      currentUser.value = savedUser ? JSON.parse(savedUser) : null;
+      token.value = savedToken;
+      setApiToken(savedToken);
+    } catch {
+      await Promise.all([removeItem("user"), removeItem("token")]);
+    } finally {
+      isInitialized.value = true;
+    }
+  }
 
   async function login(credentials: LoginData) {
     isLoading.value = true;
@@ -24,8 +49,11 @@ export const useAuthStore = defineStore("auth", () => {
       const response = await authService.login(credentials);
       currentUser.value = response.user;
       token.value = response.token;
-      localStorage.setItem("user", JSON.stringify(response.user));
-      localStorage.setItem("token", response.token);
+      setApiToken(response.token);
+      await Promise.all([
+        setItem("user", JSON.stringify(response.user)),
+        setItem("token", response.token),
+      ]);
     } catch (err: any) {
       error.value = err.response?.data?.error || "Falha no login";
       throw err;
@@ -41,8 +69,11 @@ export const useAuthStore = defineStore("auth", () => {
       const response = await authService.register(userData);
       currentUser.value = response.user;
       token.value = response.token;
-      localStorage.setItem("user", JSON.stringify(response.user));
-      localStorage.setItem("token", response.token);
+      setApiToken(response.token);
+      await Promise.all([
+        setItem("user", JSON.stringify(response.user)),
+        setItem("token", response.token),
+      ]);
     } catch (err: any) {
       error.value = err.response?.data?.error || "Falha no registro";
       throw err;
@@ -51,12 +82,12 @@ export const useAuthStore = defineStore("auth", () => {
     }
   }
 
-  function logout() {
+  async function logout() {
     currentUser.value = null;
     token.value = null;
-    localStorage.removeItem("user");
-    localStorage.removeItem("token");
+    setApiToken(null);
+    await Promise.all([removeItem("user"), removeItem("token")]);
   }
 
-  return { currentUser, token, isLoading, error, login, register, logout };
+  return { currentUser, token, isLoading, error, isInitialized, restoreAuthFromStorage, login, register, logout };
 });

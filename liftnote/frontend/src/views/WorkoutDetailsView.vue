@@ -42,9 +42,9 @@
           <span style="font-weight: 800; font-size: 18px; color: var(--text3)">{{ index + 1 }}</span>
         </div>
         <div class="ex-info">
-          <div class="ex-name">{{ ex.exercise_catalog_id?.name || ex.custom_name || ex.name || 'Exercício' }}</div>
+          <div class="ex-name">{{ getExerciseName(ex) }}</div>
           <div class="ex-meta">{{ ex.series }} sets x {{ ex.reps }} reps • {{ ex.weight_kg }}kg</div>
-          <div class="ex-meta" style="font-size: 10px;">{{ formatMuscleGroup(ex.exercise_catalog_id?.muscle_group || ex.muscle_group) }}</div>
+          <div class="ex-meta" style="font-size: 10px;">{{ formatMuscleGroup(getExerciseMuscleGroup(ex)) }}</div>
         </div>
         <div class="ex-actions">
           <button class="btn btn-ghost btn-sm" style="padding: 4px; border-radius: 8px; color: var(--text2);" @click="editExercise(ex)">
@@ -63,12 +63,33 @@
     <BaseModal :modelValue="showAddExercise" @update:modelValue="val => { if (!val) resetModal(); showAddExercise = val; }" :title="isEditing ? 'Editar Exercício' : 'Adicionar Exercício'">
       <div class="form-group mb">
         <label>1. Grupo Muscular (Opcional)</label>
-        <select v-model="selectedCategory" @change="handleCategoryChange" style="width: 100%">
-          <option value="">Todos os grupos musculares</option>
-          <option v-for="cat in categories" :key="cat" :value="cat">
-            {{ formatMuscleGroup(cat) }}
-          </option>
-        </select>
+        <div class="custom-select-wrapper">
+          <button
+            type="button"
+            class="custom-select-trigger"
+            :class="{ open: categoryDropdownOpen }"
+            @click="categoryDropdownOpen = !categoryDropdownOpen"
+          >
+            <span>{{ selectedCategory ? formatMuscleGroup(selectedCategory) : 'Todos os grupos musculares' }}</span>
+            <svg class="select-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          </button>
+          <div v-if="categoryDropdownOpen" class="custom-select-dropdown">
+            <div class="custom-select-option" :class="{ selected: selectedCategory === '' }" @click="selectCategory('')">
+              Todos os grupos musculares
+            </div>
+            <div
+              v-for="cat in categories"
+              :key="cat"
+              class="custom-select-option"
+              :class="{ selected: selectedCategory === cat }"
+              @click="selectCategory(cat)"
+            >
+              {{ formatMuscleGroup(cat) }}
+            </div>
+          </div>
+        </div>
       </div>
 
       <div class="form-group mb">
@@ -162,7 +183,7 @@ import { useSessionStore } from '../store/sessionStore';
 import BaseModal from '../components/ui/BaseModal.vue';
 import ConfirmModal from '../components/ui/ConfirmModal.vue';
 import { formatMuscleGroup } from '../utils/formatters';
-import type { Workout, Exercise, ExerciseCatalogItem } from '../types';
+import type { Workout, Exercise, ExerciseCatalogItem, ExerciseCatalogRef } from '../types';
 
 const route = useRoute();
 const router = useRouter();
@@ -184,6 +205,13 @@ const exerciseToRemove = ref<string | null>(null);
 const selectedCategory = ref('');
 const selectedCatalogId = ref('');
 const searchQuery = ref('');
+const categoryDropdownOpen = ref(false);
+
+function selectCategory(value: string) {
+  selectedCategory.value = value;
+  categoryDropdownOpen.value = false;
+  handleCategoryChange();
+}
 
 const categories = computed(() => {
   const groups = new Set(catalog.value.map(c => c.muscle_group));
@@ -323,16 +351,32 @@ async function confirmRemoveExercise() {
 
 async function startSession() {
   if (workout.value) {
-    await sessionStore.startSession(workout.value);
+    await sessionStore.initializeWorkoutSession(workout.value);
     router.push('/session');
   }
+}
+
+function getExerciseName(ex: Exercise): string {
+  const cat = ex.exercise_catalog_id;
+  if (typeof cat === 'object' && cat !== null) {
+    return (cat as ExerciseCatalogRef).name || ex.custom_name || ex.name || 'Exercício';
+  }
+  return ex.custom_name || ex.name || 'Exercício';
+}
+
+function getExerciseMuscleGroup(ex: Exercise): string {
+  const cat = ex.exercise_catalog_id;
+  if (typeof cat === 'object' && cat !== null) {
+    return (cat as ExerciseCatalogRef).muscle_group || ex.muscle_group || '';
+  }
+  return ex.muscle_group || '';
 }
 </script>
 
 <style scoped>
 .summary-page {
   padding: 20px;
-  padding-bottom: 100px;
+  padding-bottom: calc(96px + env(safe-area-inset-bottom) + 16px);
 }
 .topbar-summary {
   display: flex;
@@ -489,5 +533,81 @@ async function startSession() {
 }
 .exercise-option.active .exercise-option-cat {
   color: rgba(25, 33, 38, 0.6);
+}
+
+/* ── Custom Select ── */
+.custom-select-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.custom-select-trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: var(--r);
+  padding: 10px 14px;
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 14px;
+  cursor: pointer;
+  transition: border-color 0.15s;
+  text-align: left;
+}
+
+.custom-select-trigger:focus,
+.custom-select-trigger.open {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.select-chevron {
+  flex-shrink: 0;
+  color: var(--text2);
+  transition: transform 0.2s;
+}
+
+.custom-select-trigger.open .select-chevron {
+  transform: rotate(180deg);
+}
+
+.custom-select-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: var(--r);
+  z-index: 300;
+  max-height: 220px;
+  overflow-y: auto;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.custom-select-option {
+  padding: 11px 14px;
+  font-size: 14px;
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.12s;
+  border-bottom: 1px solid var(--border);
+}
+
+.custom-select-option:last-child {
+  border-bottom: none;
+}
+
+.custom-select-option:hover {
+  background: var(--surface2);
+}
+
+.custom-select-option.selected {
+  color: var(--accent);
+  background: var(--accent-dim);
+  font-weight: 600;
 }
 </style>

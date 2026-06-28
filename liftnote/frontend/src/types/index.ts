@@ -40,11 +40,19 @@ export interface Workout {
   description: string | null;
 }
 
+export interface ExerciseCatalogRef {
+  _id?: string;
+  name: string;
+  muscle_group: string;
+  [key: string]: any;
+}
+
 export interface Exercise {
   _id: string;
   workout_id: string;
-  exercise_catalog_id: string;
+  exercise_catalog_id: string | ExerciseCatalogRef;
   name: string;
+  custom_name?: string;
   muscle_group: string;
   set_type: string;
   series: number;
@@ -71,7 +79,7 @@ export interface Session {
   workout_id: string;
   workoutName?: string;
   started_at: string;
-  status: 'completed';
+  status: 'completed' | 'active' | 'cancelled' | 'abandoned';
   exercises?: SessionExercise[];
   gym_place_id?: string | null;
   gym_name?: string | null;

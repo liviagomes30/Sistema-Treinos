@@ -68,25 +68,6 @@
         </div>
       </div>
 
-      <div class="stat-card-home card-accent">
-        <div class="stat-val-home">
-          {{ avgDuration }}<span class="stat-unit">min</span>
-        </div>
-        <div class="stat-label-home">Média por treino</div>
-        <div class="stat-icon-home">
-          <svg
-            width="32"
-            height="32"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <circle cx="12" cy="12" r="10"></circle>
-            <polyline points="12 6 12 12 16 14"></polyline>
-          </svg>
-        </div>
-      </div>
     </div>
 
     <!-- Progresso semanal -->
@@ -207,6 +188,7 @@
 <script setup lang="ts">
 import { computed, onMounted } from "vue";
 import { useAppStore } from "../store/appStore";
+import { calculateCurrentStreak, buildWeekDayGrid } from "../utils/streakCalculator";
 
 const appStore = useAppStore();
 
@@ -215,7 +197,7 @@ onMounted(() => {
   appStore.fetchWorkouts();
 });
 
-const weekGoal = 4; // meta semanal de treinos
+const weekGoal = 4;
 
 const greetingText = computed(() => {
   const h = new Date().getHours();
@@ -245,32 +227,8 @@ const weekSessions = computed(() => {
   ).length;
 });
 
-const avgDuration = computed(() => {
-  const completed = sessionsArray.value.filter((s) => s.duration_seconds);
-  if (!completed.length) return 0;
-  return Math.round(
-    completed.reduce((a, s) => a + s.duration_seconds, 0) /
-      completed.length /
-      60,
-  );
-});
 
-const streak = computed(() => {
-  let s = 0;
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  while (true) {
-    const hasSesh = sessionsArray.value.some((sess) => {
-      const sd = new Date(sess.started_at);
-      sd.setHours(0, 0, 0, 0);
-      return sd.getTime() === d.getTime() && sess.status === "completed";
-    });
-    if (!hasSesh) break;
-    s++;
-    d.setDate(d.getDate() - 1);
-  }
-  return s;
-});
+const streak = computed(() => calculateCurrentStreak(sessionsArray.value));
 
 const lastSession = computed(() => {
   if (!sessionsArray.value.length) return null;
@@ -280,26 +238,7 @@ const lastSession = computed(() => {
   )[0];
 });
 
-const weekDays = computed(() => {
-  const labels = ["D", "S", "T", "Q", "Q", "S", "S"];
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const startOfWeek = new Date(today);
-  startOfWeek.setDate(today.getDate() - today.getDay()); // domingo
-
-  return Array.from({ length: 7 }, (_, i) => {
-    const day = new Date(startOfWeek);
-    day.setDate(startOfWeek.getDate() + i);
-    const isToday = day.getTime() === today.getTime();
-    const hasSession = sessionsArray.value.some((s) => {
-      const sd = new Date(s.started_at);
-      sd.setHours(0, 0, 0, 0);
-      return sd.getTime() === day.getTime() && s.status === "completed";
-    });
-    const dayNum = day.getDate().toString();
-    return { label: dayNum, letter: labels[i], isToday, hasSession };
-  });
-});
+const weekDays = computed(() => buildWeekDayGrid(sessionsArray.value));
 
 function getWorkoutName(id: string) {
   return appStore.workouts?.find((w: any) => w._id === id)?.name || "Treino";
@@ -323,7 +262,7 @@ function formatDuration(secs: number) {
 <style scoped>
 .home-page {
   padding: 20px;
-  padding-bottom: 100px;
+  padding-bottom: calc(96px + env(safe-area-inset-bottom) + 16px);
   width: 100%;
 }
 

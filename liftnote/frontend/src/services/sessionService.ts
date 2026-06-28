@@ -4,7 +4,6 @@ import type { Session } from '../types';
 export const sessionService = {
   async getAll(params: Record<string, any> = {}): Promise<Session[]> {
     const response = await api.get<{ data: Session[] }>('/sessions', { params });
-    // O backend retorna { data: [...], total, page, limit }
     return response.data.data;
   },
 
@@ -27,7 +26,6 @@ export const sessionService = {
     await api.delete(`/sessions/${id}`);
   },
 
-  // Logs
   async addLog(sessionId: string, data: any): Promise<any> {
     const response = await api.post(`/sessions/${sessionId}/logs`, data);
     return response.data;

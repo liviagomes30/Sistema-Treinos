@@ -12,7 +12,7 @@ export const exerciseService = {
     return response.data;
   },
 
-  async getHistory(catalogId: string): Promise<any[]> {
+  async fetchExercisePerformanceHistory(catalogId: string): Promise<any[]> {
     const response = await api.get(`/catalog/${catalogId}/history`);
     return response.data;
   }

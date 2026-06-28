@@ -2,7 +2,7 @@ const repository = require("../repositories/logRepository");
 const AppError = require("../utils/AppError");
 
 class LogService {
-  async _getSession(sessionId, userId) {
+  async validateAndGetSession(sessionId, userId) {
     const session = await repository.getSession(sessionId, userId);
     if (!session) {
       throw new AppError("Sessão não encontrada ou acesso negado", 403);
@@ -11,7 +11,7 @@ class LogService {
   }
 
   async getAll(sessionId, userId) {
-    await this._getSession(sessionId, userId);
+    await this.validateAndGetSession(sessionId, userId);
     return repository.getLogsBySessionId(sessionId);
   }
 
@@ -27,7 +27,7 @@ class LogService {
   }
 
   async create(sessionId, userId, data) {
-    const session = await this._getSession(sessionId, userId);
+    const session = await this.validateAndGetSession(sessionId, userId);
 
     const { workout_exercise_id, set_number, reps_done, weight_used_kg, notes } = data;
 
@@ -52,7 +52,7 @@ class LogService {
   }
 
   async update(id, sessionId, userId, data) {
-    await this._getSession(sessionId, userId);
+    await this.validateAndGetSession(sessionId, userId);
 
     const log = await repository.findOneAndUpdate(id, sessionId, data);
     
@@ -64,7 +64,7 @@ class LogService {
   }
 
   async remove(id, sessionId, userId) {
-    await this._getSession(sessionId, userId);
+    await this.validateAndGetSession(sessionId, userId);
 
     const log = await repository.deleteOne(id, sessionId);
     

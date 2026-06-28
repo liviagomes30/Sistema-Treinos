@@ -22,8 +22,6 @@ export const muscleGroupTranslations: Record<string, string> = {
   'middle back': 'Meio das Costas',
   'lower back': 'Lombar',
   abdominals: 'Abdominais',
-  
-  // Mapeamentos para casos onde o banco já possa ter salvo em PT (legado/fallback)
   abdominais: 'Abdominais',
   isquiotibiais: 'Isquiotibiais',
   adutores: 'Adutores',

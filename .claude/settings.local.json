@@ -13,7 +13,15 @@
       "Bash(Remove-Item \"c:\\\\Trabalho-LP-Academia\\\\liftnote\\\\frontend\\\\src\\\\composables\\\\useExercises.ts\")",
       "PowerShell(Remove-Item \"c:\\\\Trabalho-LP-Academia\\\\liftnote\\\\frontend\\\\src\\\\components\\\\workouts\\\\ExerciseModal.vue\" -Confirm:$false)",
       "PowerShell(Remove-Item \"c:\\\\Trabalho-LP-Academia\\\\liftnote\\\\frontend\\\\src\\\\components\\\\workouts\\\\SessionSummaryModal.vue\" -Confirm:$false)",
-      "PowerShell(Remove-Item \"c:\\\\Trabalho-LP-Academia\\\\liftnote\\\\frontend\\\\src\\\\composables\\\\useExercises.ts\" -Confirm:$false)"
+      "PowerShell(Remove-Item \"c:\\\\Trabalho-LP-Academia\\\\liftnote\\\\frontend\\\\src\\\\composables\\\\useExercises.ts\" -Confirm:$false)",
+      "PowerShell(Get-Service -Name \"MongoDB\" -ErrorAction SilentlyContinue)",
+      "PowerShell(netstat -ano)",
+      "PowerShell(netsh advfirewall firewall show rule name=\"Node.js 3000\" 2>&1)",
+      "PowerShell(netsh advfirewall firewall add rule name=\"LiftNote Backend 3000\" dir=in action=allow protocol=TCP localport=3000 2>&1)",
+      "Bash(npm run *)",
+      "Bash(npx cap *)",
+      "Bash(node -e \"require\\('./src/app.js'\\)\")",
+      "Bash(node --check src/app.js)"
     ]
   }
 }

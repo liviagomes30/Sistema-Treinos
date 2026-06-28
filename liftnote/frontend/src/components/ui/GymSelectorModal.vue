@@ -43,14 +43,14 @@
       <!-- Erro -->
       <div v-if="errorMsg && !loading" class="gym-error">
         {{ errorMsg }}
-        <button class="btn btn-ghost btn-sm" style="margin-top: 8px;" @click="reset">Tentar novamente</button>
+        <button class="btn btn-ghost btn-sm" style="margin-top: 8px;" @click="resetGymSearchState">Tentar novamente</button>
       </div>
 
       <!-- Lista de academias -->
       <div v-if="!loading && gyms.length > 0" class="gym-list">
         <div class="gym-list-header">
           <span class="gym-count">{{ gyms.length }} academias encontradas</span>
-          <button class="btn btn-ghost btn-sm" @click="reset" style="font-size: 11px;">Refazer busca</button>
+          <button class="btn btn-ghost btn-sm" @click="resetGymSearchState" style="font-size: 11px;">Refazer busca</button>
         </div>
 
         <div
@@ -58,7 +58,7 @@
           :key="gym.id"
           class="gym-item"
           :class="{ 'gym-item-selected': selectedGym?.id === gym.id }"
-          @click="selectGym(gym)"
+          @click="toggleGymSelection(gym)"
         >
           <div class="gym-item-icon">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -100,6 +100,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
+import { Geolocation } from '@capacitor/geolocation';
 import BaseModal from './BaseModal.vue';
 import { placesService } from '../../services/placesService';
 import type { GymPlace } from '../../types';
@@ -120,38 +121,29 @@ const cityInput = ref('');
 const manualGymName = ref('');
 
 async function detectLocation() {
-  if (!navigator.geolocation) {
-    errorMsg.value = 'Geolocalização não suportada pelo navegador.';
-    return;
-  }
-
   loading.value = true;
   errorMsg.value = '';
 
-  navigator.geolocation.getCurrentPosition(
-    async (pos) => {
-      try {
-        const results = await placesService.searchGyms({
-          lat: pos.coords.latitude,
-          lng: pos.coords.longitude,
-        });
-        gyms.value = results;
-        locationState.value = 'located';
-        if (results.length === 0) {
-          errorMsg.value = 'Nenhuma academia encontrada próxima à sua localização.';
-        }
-      } catch {
-        errorMsg.value = 'Erro ao buscar academias. Tente pelo nome da cidade.';
-      } finally {
-        loading.value = false;
-      }
-    },
-    () => {
-      loading.value = false;
+  try {
+    const pos = await Geolocation.getCurrentPosition({ timeout: 10000 });
+    const results = await placesService.searchGyms({
+      lat: pos.coords.latitude,
+      lng: pos.coords.longitude,
+    });
+    gyms.value = results;
+    locationState.value = 'located';
+    if (results.length === 0) {
+      errorMsg.value = 'Nenhuma academia encontrada próxima à sua localização.';
+    }
+  } catch (err: any) {
+    if (err?.message?.includes('denied') || err?.code === 1) {
       errorMsg.value = 'Permissão de localização negada. Use a busca por cidade.';
-    },
-    { timeout: 10000 },
-  );
+    } else {
+      errorMsg.value = 'Erro ao buscar academias. Tente pelo nome da cidade.';
+    }
+  } finally {
+    loading.value = false;
+  }
 }
 
 async function searchByCity() {
@@ -176,7 +168,7 @@ async function searchByCity() {
   }
 }
 
-function selectGym(gym: GymPlace) {
+function toggleGymSelection(gym: GymPlace) {
   selectedGym.value = selectedGym.value?.id === gym.id ? null : gym;
 }
 
@@ -206,7 +198,7 @@ function confirmManualGym() {
   emit('update:isOpen', false);
 }
 
-function reset() {
+function resetGymSearchState() {
   locationState.value = 'idle';
   gyms.value = [];
   selectedGym.value = null;

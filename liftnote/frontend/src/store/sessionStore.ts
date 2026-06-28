@@ -4,6 +4,28 @@ import type { Workout, GymPlace } from '../types'
 import { sessionService } from '../services/sessionService'
 import { workoutService } from '../services/workoutService'
 
+function normalizeWorkoutReference(workoutData: any): { id: string; name: string } {
+  if (typeof workoutData === 'object' && workoutData !== null) {
+    return { id: workoutData._id, name: workoutData.name || 'Treino' }
+  }
+  return { id: workoutData, name: 'Treino' }
+}
+
+function buildSessionExerciseEntry(we: any, lastLoads: any, existingLogs: any[] = []) {
+  return {
+    exercise_id: we._id,
+    name: we.exercise_catalog_id?.name || we.custom_name || we.name || 'Exercício',
+    muscle_group: we.exercise_catalog_id?.muscle_group || we.muscle_group,
+    series: we.series,
+    reps: we.reps,
+    weight_kg: we.weight_kg || 0,
+    set_type: we.set_type,
+    rest_seconds: we.rest_seconds,
+    logs: existingLogs,
+    last_loads: lastLoads[we._id] || null,
+  }
+}
+
 export const useSessionStore = defineStore('session', () => {
   const activeSession = ref<any | null>(null)
   const currentSessionId = ref<string | null>(null)
@@ -11,7 +33,7 @@ export const useSessionStore = defineStore('session', () => {
   const isSavingSet = ref(false)
   const error = ref<string | null>(null)
 
-  async function startSession(workout: Workout, gym?: GymPlace | null) {
+  async function initializeWorkoutSession(workout: Workout, gym?: GymPlace | null) {
     isLoading.value = true
     error.value = null
     currentSessionId.value = null
@@ -27,18 +49,7 @@ export const useSessionStore = defineStore('session', () => {
         gym_place_id: gym?.id ?? null,
         gym_name: gym?.name ?? null,
         gym_address: gym?.address ?? null,
-        exercises: workoutExercises.map((we: any) => ({
-          exercise_id: we._id,
-          name: we.exercise_catalog_id?.name || we.custom_name || we.name || 'Exercício',
-          muscle_group: we.exercise_catalog_id?.muscle_group || we.muscle_group,
-          series: we.series,
-          reps: we.reps,
-          weight_kg: we.weight_kg || 0,
-          set_type: we.set_type,
-          rest_seconds: we.rest_seconds,
-          logs: [],
-          last_loads: (lastLoads as any)[we._id] || null,
-        })),
+        exercises: workoutExercises.map((we: any) => buildSessionExerciseEntry(we, lastLoads)),
       }
     } catch (err: any) {
       error.value = 'Falha ao carregar exercícios do treino'
@@ -48,15 +59,14 @@ export const useSessionStore = defineStore('session', () => {
     }
   }
 
-  async function resumeSession(sessionId: string) {
+  async function reloadExistingSession(sessionId: string) {
     isLoading.value = true
     error.value = null
     try {
       const session = await sessionService.getById(sessionId)
       if (!session) throw new Error('Sessão não encontrada')
-      
-      const workoutId = typeof session.workout_id === 'object' ? (session.workout_id as any)._id : session.workout_id
-      const workoutName = typeof session.workout_id === 'object' ? (session.workout_id as any).name : 'Treino'
+
+      const { id: workoutId, name: workoutName } = normalizeWorkoutReference(session.workout_id)
       const [workoutExercises, lastLoads] = await Promise.all([
         workoutService.getExercises(workoutId),
         workoutService.getLastLoads(workoutId).catch(() => ({})),
@@ -68,25 +78,13 @@ export const useSessionStore = defineStore('session', () => {
 
       activeSession.value = {
         workout_id: workoutId,
-        workoutName: workoutName,
+        workoutName,
         exercises: workoutExercises.map((we: any) => {
           const exLogs = (session as any).logs?.filter((l: any) => {
             const exId = typeof l.workout_exercise_id === 'object' ? l.workout_exercise_id._id : l.workout_exercise_id
             return exId === we._id
           }) || []
-
-          return {
-            exercise_id: we._id,
-            name: we.exercise_catalog_id?.name || we.custom_name || we.name || 'Exercício',
-            muscle_group: we.exercise_catalog_id?.muscle_group || we.muscle_group,
-            series: we.series,
-            reps: we.reps,
-            weight_kg: we.weight_kg || 0,
-            set_type: we.set_type,
-            rest_seconds: we.rest_seconds,
-            logs: exLogs,
-            last_loads: (lastLoads as any)[we._id] || null,
-          }
+          return buildSessionExerciseEntry(we, lastLoads, exLogs)
         }),
       }
       currentSessionId.value = sessionId
@@ -99,7 +97,7 @@ export const useSessionStore = defineStore('session', () => {
     }
   }
 
-  async function logSet(exerciseId: string, logData: { set_number: number; reps_done: number; weight_used_kg: number }) {
+  async function recordExerciseSet(exerciseId: string, logData: { set_number: number; reps_done: number; weight_used_kg: number }) {
     if (!activeSession.value) return
 
     isSavingSet.value = true
@@ -192,10 +190,7 @@ export const useSessionStore = defineStore('session', () => {
     }
 
     try {
-      await sessionService.update(currentSessionId.value, { 
-        status: 'completed',
-        endTime: new Date().toISOString()
-      })
+      await sessionService.update(currentSessionId.value, { status: 'completed' })
       resetSession()
     } catch (err: any) {
       error.value = 'Erro ao finalizar treino'
@@ -204,5 +199,5 @@ export const useSessionStore = defineStore('session', () => {
     }
   }
 
-  return { activeSession, currentSessionId, isLoading, isSavingSet, error, startSession, resumeSession, logSet, updateLogSet, deleteLogSet, resetSession, finishSession }
+  return { activeSession, currentSessionId, isLoading, isSavingSet, error, initializeWorkoutSession, reloadExistingSession, recordExerciseSet, updateLogSet, deleteLogSet, resetSession, finishSession }
 })

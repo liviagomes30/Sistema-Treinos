@@ -1,18 +1,17 @@
 const service = require("../services/exerciseCatalogService");
 const logRepository = require("../repositories/logRepository");
+const logger = require("../config/logger");
 
-// GET /api/catalog
 const getAll = async (req, res, next) => {
   try {
     const items = await service.getAll(req.user._id, req.query);
     res.json(items);
   } catch (err) {
-    console.error('[exerciseCatalog] getAll error:', err);
+    logger.error({ err }, "exerciseCatalog getAll error");
     next(err);
   }
 };
 
-// GET /api/catalog/:id
 const getOne = async (req, res, next) => {
   try {
     const item = await service.getOne(req.params.id, req.user._id);
@@ -22,7 +21,6 @@ const getOne = async (req, res, next) => {
   }
 };
 
-// POST /api/catalog
 const create = async (req, res, next) => {
   try {
     const item = await service.create(req.user._id, req.body);
@@ -32,7 +30,6 @@ const create = async (req, res, next) => {
   }
 };
 
-// PUT /api/catalog/:id
 const update = async (req, res, next) => {
   try {
     const item = await service.update(req.params.id, req.user._id, req.body);
@@ -42,7 +39,6 @@ const update = async (req, res, next) => {
   }
 };
 
-// DELETE /api/catalog/:id
 const remove = async (req, res, next) => {
   try {
     const result = await service.remove(req.params.id, req.user._id);
@@ -52,7 +48,6 @@ const remove = async (req, res, next) => {
   }
 };
 
-// GET /api/catalog/logged
 const getLogged = async (req, res, next) => {
   try {
     const items = await logRepository.getLoggedCatalogItems(req.user._id);

@@ -2,7 +2,7 @@ const repository = require("../repositories/workoutExerciseRepository");
 const AppError = require("../utils/AppError");
 
 class WorkoutExerciseService {
-  async _checkAccess(workoutId, userId) {
+  async validateUserOwnsWorkout(workoutId, userId) {
     const owns = await repository.ownsWorkout(workoutId, userId);
     if (!owns) {
       throw new AppError("Acesso negado", 403);
@@ -10,12 +10,12 @@ class WorkoutExerciseService {
   }
 
   async getAll(workoutId, userId) {
-    await this._checkAccess(workoutId, userId);
+    await this.validateUserOwnsWorkout(workoutId, userId);
     return repository.findByWorkoutId(workoutId);
   }
 
   async getOne(id, workoutId, userId) {
-    await this._checkAccess(workoutId, userId);
+    await this.validateUserOwnsWorkout(workoutId, userId);
     const item = await repository.findOneWithDetails(id, workoutId);
     
     if (!item) {
@@ -25,7 +25,7 @@ class WorkoutExerciseService {
   }
 
   async create(workoutId, userId, data) {
-    await this._checkAccess(workoutId, userId);
+    await this.validateUserOwnsWorkout(workoutId, userId);
 
     const { exercise_catalog_id } = data;
     const isAccessible = await repository.catalogAccessible(exercise_catalog_id, userId);
@@ -44,7 +44,7 @@ class WorkoutExerciseService {
   }
 
   async update(id, workoutId, userId, data) {
-    await this._checkAccess(workoutId, userId);
+    await this.validateUserOwnsWorkout(workoutId, userId);
 
     const item = await repository.findOne(id, workoutId);
     if (!item) {
@@ -57,21 +57,20 @@ class WorkoutExerciseService {
   }
 
   async remove(id, workoutId, userId) {
-    await this._checkAccess(workoutId, userId);
+    await this.validateUserOwnsWorkout(workoutId, userId);
 
     const item = await repository.deleteOne(id, workoutId);
     if (!item) {
       throw new AppError("Exercício não encontrado", 404);
     }
 
-    // Deleção em cascata (remove logs associados)
     await repository.deleteLogs(item._id);
 
     return { message: "Exercício removido com sucesso" };
   }
 
   async reorder(workoutId, userId, updates) {
-    await this._checkAccess(workoutId, userId);
+    await this.validateUserOwnsWorkout(workoutId, userId);
 
     await Promise.all(
       updates.map(({ id, order }) => repository.updateOrder(id, workoutId, order))

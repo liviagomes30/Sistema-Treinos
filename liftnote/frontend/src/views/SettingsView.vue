@@ -370,7 +370,7 @@ async function confirmDeleteAccount() {
 <style scoped>
 .settings-page {
   padding: 20px;
-  padding-bottom: 100px;
+  padding-bottom: calc(96px + env(safe-area-inset-bottom) + 16px);
   width: 100%;
   position: relative;
 }

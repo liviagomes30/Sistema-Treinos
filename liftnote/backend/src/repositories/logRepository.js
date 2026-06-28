@@ -53,7 +53,6 @@ class LogRepository {
       .sort({ logged_at: -1 })
       .limit(100);
 
-    // Mongoose popula com null quando o match falha. Vamos filtrar.
     return logs.filter((l) => l.session_id !== null);
   }
 

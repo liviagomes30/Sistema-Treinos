@@ -21,7 +21,7 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: [true, "Senha é obrigatória"],
       minlength: [6, "Senha deve ter no mínimo 6 caracteres"],
-      select: false, // nunca retorna a senha nas queries
+      select: false,
     },
     age: {
       type: Number,
@@ -49,22 +49,17 @@ const userSchema = new mongoose.Schema(
   },
 );
 
-// Hash da senha antes de salvar
-// Hash da senha antes de salvar (Sem precisar do next)
 userSchema.pre("save", async function () {
-  // Se a senha não foi modificada, apenas encerra a função e o Mongoose segue o fluxo
   if (!this.isModified("password_hash")) return;
-  
+
   const salt = await bcrypt.genSalt(10);
   this.password_hash = await bcrypt.hash(this.password_hash, salt);
 });
 
-// Método para comparar senha no login
 userSchema.methods.comparePassword = async function (plainPassword) {
   return bcrypt.compare(plainPassword, this.password_hash);
 };
 
-// Remove campos sensíveis ao serializar para JSON
 userSchema.methods.toJSON = function () {
   const obj = this.toObject();
   delete obj.password_hash;

@@ -1,27 +1,19 @@
 const MUSCLE_GROUPS = [
-  // Tronco superior
   "chest",
   "back",
   "shoulders",
   "traps",
   "neck",
-
-  // Braços
   "biceps",
   "triceps",
   "forearms",
-
-  // Core
   "abs",
-
-  // Quadril e pernas
   "glutes",
   "abductors",
   "adductors",
   "quadriceps",
   "hamstrings",
   "calves",
-
   "other",
 ];
 

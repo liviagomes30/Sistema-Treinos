@@ -13,25 +13,27 @@ const swaggerSpec = require("./config/swagger");
 
 const app = express();
 
-// ─── Middlewares globais ───────────────────────────────────────
 app.use(helmet());
 app.use(compression());
-app.use(cors({ origin: process.env.FRONTEND_URL || "http://localhost:5173" }));
+const allowedOrigins = [
+  process.env.FRONTEND_URL || "http://localhost:5173",
+  "http://localhost",
+  "https://localhost",
+  "capacitor://localhost",
+  "http://localhost:5173",
+];
+app.use(cors({ origin: (origin, cb) => cb(null, !origin || allowedOrigins.includes(origin)) }));
 app.use(express.json());
 
-// ─── Logging Middleware Simples ───────────────────────────────
 app.use((req, res, next) => {
   logger.info({ method: req.method, url: req.url }, "Incoming request");
   next();
 });
 
-// ─── Swagger Documentation ──────────────────────────────────────
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
-// ─── Rotas ────────────────────────────────────────────────────
 app.use("/api", routes);
 
-// ─── Health check ─────────────────────────────────────────────
 /**
  * @swagger
  * /health:
@@ -44,10 +46,8 @@ app.use("/api", routes);
  */
 app.get("/health", (req, res) => res.json({ status: "ok" }));
 
-// ─── Handler de erros global (deve ser o último middleware) ───
 app.use(errorHandler);
 
-// ─── Conexão com MongoDB e start do servidor ──────────────────
 const PORT = process.env.PORT || 3000;
 
 connectDB().then(() => {
